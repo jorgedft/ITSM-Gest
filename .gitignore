@@ -1,0 +1,23 @@
+# Dependencias
+node_modules/
+.pnpm-store/
+
+# Archivos de entorno y claves
+.env
+.env.local
+.env.*.local
+
+# Builds
+dist/
+build/
+
+# Basura de comandos o snippets
+exportToExcel*
+exportToPDF*
+fDate*
+r.*
+setAssets*
+setPhones*
+t.value
+{
+(

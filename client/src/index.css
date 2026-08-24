@@ -1,0 +1,53 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    *, *::before, *::after { box-sizing: border-box; }
+    body { @apply bg-gray-50 text-gray-900 antialiased; }
+    html { font-family: 'Inter', system-ui, sans-serif; }
+}
+
+@layer components {
+    .btn-primary {
+        @apply inline-flex items-center justify-center gap-2
+               bg-brand-500 hover:bg-brand-600 active:bg-brand-700
+               text-white font-medium px-4 py-2 rounded-lg
+               transition-colors duration-200 disabled:opacity-50
+               disabled:cursor-not-allowed;
+    }
+    .btn-secondary {
+        @apply inline-flex items-center justify-center gap-2
+               bg-white hover:bg-gray-50 text-gray-700 font-medium
+               border border-gray-300 px-4 py-2 rounded-lg
+               transition-colors duration-200;
+    }
+    .btn-danger {
+        @apply inline-flex items-center justify-center gap-2
+               bg-red-500 hover:bg-red-600 text-white font-medium
+               px-4 py-2 rounded-lg transition-colors duration-200;
+    }
+    .card {
+        @apply bg-white rounded-xl shadow-sm border border-gray-200 p-6;
+    }
+    .input-field {
+        @apply w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+               focus:outline-none focus:ring-2 focus:ring-brand-500
+               focus:border-transparent transition-shadow;
+    }
+    .label {
+        @apply block text-sm font-medium text-gray-700 mb-1;
+    }
+    /* Badges de estado */
+    .badge { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium; }
+    .badge-open      { @apply badge bg-blue-100   text-blue-800;  }
+    .badge-progress  { @apply badge bg-yellow-100 text-yellow-800; }
+    .badge-resolved  { @apply badge bg-green-100  text-green-800; }
+    .badge-closed    { @apply badge bg-gray-100   text-gray-700;  }
+    .badge-critical  { @apply badge bg-red-100    text-red-800;   }
+    .badge-available { @apply badge bg-green-100  text-green-800; }
+    .badge-assigned  { @apply badge bg-brand-100  text-brand-800; }
+    .badge-retired   { @apply badge bg-gray-100   text-gray-600;  }
+}
