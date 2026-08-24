@@ -13,6 +13,7 @@ export default function AssetForm() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
+  const [isManualAssignee, setIsManualAssignee] = useState(false);
 
   const [formData, setFormData] = useState({
     asset_tag: '',
@@ -24,19 +25,16 @@ export default function AssetForm() {
     condition: '',
     assigned_to: '',
     location: '',
-    purchase_price: '',
-    purchase_date: '',
     warranty_until: '',
     notes: '',
   });
 
-  // Cargar lista de empleados para la asignación y los datos del activo si se está editando
   useEffect(() => {
     async function loadInitialData() {
       try {
         setLoading(true);
 
-        // 1. Obtener empleados para el selector
+        // Obtener la lista de empleados para sugerencias
         const { data: empData, error: empErr } = await supabase
           .from('employees')
           .select('id, full_name, department')
@@ -45,7 +43,7 @@ export default function AssetForm() {
         if (empErr) console.error('Error al obtener empleados:', empErr);
         else setEmployees(empData || []);
 
-        // 2. Si se trata de una edición, cargar los datos del activo
+        // Cargar datos del activo en modo edición
         if (isEditing) {
           const { data, error } = await supabase
             .from('assets')
@@ -65,8 +63,6 @@ export default function AssetForm() {
               condition: data.condition || '',
               assigned_to: data.assigned_to || '',
               location: data.location || '',
-              purchase_price: data.purchase_price || '',
-              purchase_date: data.purchase_date || '',
               warranty_until: data.warranty_until || '',
               notes: data.notes || '',
             });
@@ -88,41 +84,45 @@ export default function AssetForm() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e) => {
-  e.preventDefault();
-  setSaving(true);
-  setErrorMsg(null);
-
-  // Convertir cadenas vacías en null para no romper los tipos DATE / NUMERIC en Supabase
-  const payload = {
-    ...formData,
-    assigned_to: formData.assigned_to || null,
-    warranty_until: formData.warranty_until || null,
-    // Asegurar que campos de texto opcionales no envíen solo espacios
-    brand: formData.brand || null,
-    model: formData.model || null,
-    serial_number: formData.serial_number || null,
-    condition: formData.condition || null,
-    location: formData.location || null,
-    notes: formData.notes || null,
+  const handleAssigneeDoubleClick = () => {
+    setIsManualAssignee((prev) => !prev);
   };
 
-  try {
-    if (isEditing) {
-      const { error } = await supabase.from('assets').update(payload).eq('id', id);
-      if (error) throw error;
-    } else {
-      const { error } = await supabase.from('assets').insert([payload]);
-      if (error) throw error;
-    }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setErrorMsg(null);
 
-    navigate('/assets');
-  } catch (err) {
-    setErrorMsg(err.message || 'Error al guardar el registro.');
-  } finally {
-    setSaving(false);
-  }
-};
+    const payload = {
+      asset_tag: formData.asset_tag,
+      asset_type: formData.asset_type || null,
+      brand: formData.brand || null,
+      model: formData.model || null,
+      serial_number: formData.serial_number || null,
+      status: formData.status || null,
+      condition: formData.condition || null,
+      assigned_to: formData.assigned_to || null,
+      location: formData.location || null,
+      warranty_until: formData.warranty_until || null,
+      notes: formData.notes || null,
+    };
+
+    try {
+      if (isEditing) {
+        const { error } = await supabase.from('assets').update(payload).eq('id', id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('assets').insert([payload]);
+        if (error) throw error;
+      }
+
+      navigate('/assets');
+    } catch (err) {
+      setErrorMsg(err.message || 'Error al guardar el registro.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -157,9 +157,11 @@ export default function AssetForm() {
 
       <form onSubmit={handleSubmit} className="card space-y-6 bg-white p-6 rounded-xl border border-gray-200">
         
-        {/* Sección: Datos Generales */}
+        {/* Información Principal */}
         <div>
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Información Principal</h2>
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+            Información Principal
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
@@ -242,25 +244,56 @@ export default function AssetForm() {
           </div>
         </div>
 
-        {/* Sección: Asignación y Ubicación */}
+        {/* Asignación y Ubicación */}
         <div className="pt-4 border-t border-gray-100">
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Asignación y Ubicación</h2>
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+            Asignación y Ubicación
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            {/* Campo Asignado a (Doble Clic para escribir texto libre o seleccionar) */}
             <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Asignado a</label>
-              <select
-                name="assigned_to"
-                value={formData.assigned_to}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
-              >
-                <option value="">Sin asignar</option>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-gray-700 uppercase">
+                  Asignado a
+                </label>
+                <span className="text-[10px] text-gray-400 italic">
+                  (Doble clic para {isManualAssignee ? 'ver lista' : 'escribir texto'})
+                </span>
+              </div>
+
+              {isManualAssignee ? (
+                <input
+                  type="text"
+                  name="assigned_to"
+                  value={formData.assigned_to}
+                  onChange={handleChange}
+                  onDoubleClick={handleAssigneeDoubleClick}
+                  placeholder="Escribe el nombre del asignado..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
+                  title="Haz doble clic para alternar a lista desplegable"
+                />
+              ) : (
+                <input
+                  type="text"
+                  name="assigned_to"
+                  list="employee-suggestions"
+                  value={formData.assigned_to}
+                  onChange={handleChange}
+                  onDoubleClick={handleAssigneeDoubleClick}
+                  placeholder="Selecciona o escribe un nombre..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
+                  title="Haz doble clic para modo de texto manual"
+                />
+              )}
+
+              <datalist id="employee-suggestions">
                 {employees.map((emp) => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.full_name} {emp.department ? `(${emp.department})` : ''}
+                  <option key={emp.id} value={emp.full_name}>
+                    {emp.department ? `${emp.full_name} (${emp.department})` : emp.full_name}
                   </option>
                 ))}
-              </select>
+              </datalist>
             </div>
 
             <div>
@@ -294,36 +327,16 @@ export default function AssetForm() {
           </div>
         </div>
 
-        {/* Sección: Datos Financieros y Garantía */}
+        {/* Garantía */}
         <div className="pt-4 border-t border-gray-100">
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Detalles de Compra y Garantía</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+            Garantía
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Precio de Compra</label>
-              <input
-                type="number"
-                step="0.01"
-                name="purchase_price"
-                value={formData.purchase_price}
-                onChange={handleChange}
-                placeholder="0.00"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Fecha de Compra</label>
-              <input
-                type="date"
-                name="purchase_date"
-                value={formData.purchase_date}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Vencimiento de Garantía</label>
+              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+                Vencimiento de Garantía
+              </label>
               <input
                 type="date"
                 name="warranty_until"
@@ -335,7 +348,7 @@ export default function AssetForm() {
           </div>
         </div>
 
-        {/* Sección: Notas */}
+        {/* Notas Adicionales */}
         <div className="pt-4 border-t border-gray-100">
           <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Notas Adicionales</label>
           <textarea
