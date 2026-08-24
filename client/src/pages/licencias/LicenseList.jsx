@@ -1,12 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../services/supabase';
-import { Plus, Key } from 'lucide-react';
+import { Plus, Pencil } from 'lucide-react';
+import { EditLicenseModal } from '../../components/licencias/EditLicenseModal';
 
 export default function LicenseList() {
   const navigate = useNavigate();
   const [licenses, setLicenses] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Estados para el Modal de Edición
+  const [selectedLicense, setSelectedLicense] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     fetchLicenses();
@@ -27,6 +32,11 @@ export default function LicenseList() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEditClick = (license) => {
+    setSelectedLicense(license);
+    setIsModalOpen(true);
   };
 
   return (
@@ -70,10 +80,10 @@ export default function LicenseList() {
                     </td>
                     <td className="py-3 px-4 text-right">
                       <button
-                        onClick={() => navigate(`/licenses/${lic.id}/edit`)}
-                        className="text-blue-600 hover:text-blue-800 text-xs font-semibold"
+                        onClick={() => handleEditClick(lic)}
+                        className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-xs font-semibold hover:bg-blue-50 px-2 py-1 rounded transition-colors"
                       >
-                        Editar
+                        <Pencil size={14} /> Editar
                       </button>
                     </td>
                   </tr>
@@ -83,6 +93,14 @@ export default function LicenseList() {
           </div>
         )}
       </div>
+
+      {/* Modal de Edición */}
+      <EditLicenseModal
+        license={selectedLicense}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={fetchLicenses}
+      />
     </div>
   );
 }
