@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Monitor, Search, RefreshCw, Trash2, Eye, Edit } from "lucide-react";
+import { Plus, Monitor, Search, RefreshCw, Trash2, Eye, Edit, FileSpreadsheet } from "lucide-react";
 import { supabase } from "../../services/supabase";
 import { StatusBadge } from "../../components/ui/Badge";
 import { Spinner } from "../../components/ui/Spinner";
@@ -9,6 +9,7 @@ import { ExportButtons } from "../../components/ui/ExportButtons";
 import { exportToExcel, exportToPDF } from "../../utils/exportUtils";
 import { fDate, fCurrency } from "../../utils/formatters";
 import { ASSET_TYPES, ASSET_STATUS } from "../../utils/constants";
+import { ImportAssetsModal } from "../../components/assets/ImportAssetsModal";
 
 const COLS = [
   { header:"Etiqueta",   accessor: r=>r.asset_code || r.asset_tag },
@@ -33,6 +34,7 @@ export default function AssetList() {
   const [filters, setFilters] = useState({ status:"", type:"" });
   const [page,    setPage]    = useState(1);
   const [total,   setTotal]   = useState(0);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const LIMIT = 20;
 
   const load = useCallback(async () => {
@@ -91,6 +93,13 @@ export default function AssetList() {
             onPDFClick={async()=>exportToPDF(await loadAll(),COLS,"Inventario_Equipos","Inventario de Equipos ITAM")}
             disabled={loading}
           />
+          <button
+            onClick={() => setIsImportModalOpen(true)}
+            className="btn-secondary text-sm flex items-center gap-1.5"
+          >
+            <FileSpreadsheet size={16} className="text-emerald-600" />
+            <span>Importar Excel</span>
+          </button>
           <Link to="/assets/new" className="btn-primary"><Plus size={16}/> Nuevo equipo</Link>
         </div>
       </div>
@@ -114,8 +123,15 @@ export default function AssetList() {
 
       <div className="card p-0 overflow-hidden">
         {loading?<Spinner/>:assets.length===0?(
-          <EmptyState icon={Monitor} title="Sin equipos" description="Registra el primer equipo de TI"
-            action={<Link to="/assets/new" className="btn-primary text-sm">+ Nuevo equipo</Link>}/>
+          <EmptyState icon={Monitor} title="Sin equipos" description="Registra el primer equipo de TI o importa masivamente desde un archivo Excel"
+            action={
+              <div className="flex gap-2">
+                <button onClick={() => setIsImportModalOpen(true)} className="btn-secondary text-sm">
+                  <FileSpreadsheet size={16} className="text-emerald-600" /> Importar Excel
+                </button>
+                <Link to="/assets/new" className="btn-primary text-sm">+ Nuevo equipo</Link>
+              </div>
+            }/>
         ):(
           <>
             <div className="overflow-x-auto">
@@ -175,6 +191,13 @@ export default function AssetList() {
           </>
         )}
       </div>
+
+      {/* Modal de Importación desde Excel */}
+      <ImportAssetsModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onSuccess={load}
+      />
     </div>
   );
 }
