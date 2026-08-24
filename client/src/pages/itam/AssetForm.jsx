@@ -97,7 +97,6 @@ export default function AssetForm() {
   const payload = {
     ...formData,
     assigned_to: formData.assigned_to || null,
-    purchase_price: formData.purchase_price ? parseFloat(formData.purchase_price) : null,
     warranty_until: formData.warranty_until || null,
     // Asegurar que campos de texto opcionales no envíen solo espacios
     brand: formData.brand || null,
