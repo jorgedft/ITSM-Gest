@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Network, Search, RefreshCw, Save } from 'lucide-react';
+import { Network, Search, RefreshCw, Save, HardDriveDownload } from 'lucide-react';
 import { supabase } from '../../services/supabase';
 
 export default function IpManagement() {
@@ -8,6 +8,7 @@ export default function IpManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('ALL');
   const [loading, setLoading] = useState(false);
+  const [savingGlobal, setSavingGlobal] = useState(false);
 
   useEffect(() => {
     generateSegmentTemplate(segment);
@@ -39,7 +40,6 @@ export default function IpManagement() {
       if (error) throw error;
 
       if (data && data.length > 0) {
-        // Mapeamos asignando la columna de Supabase (assigned_user_text) al estado local (assigned_to_text)
         const savedMap = new Map(
           data.map(item => [
             item.ip_address,
@@ -72,9 +72,10 @@ export default function IpManagement() {
     setIpList(prev => prev.map(row => {
       if (row.ip_address === ipAddress) {
         const updated = { ...row, [field]: value };
-        // Cambio automático de estado según contenido
         if (field === 'assigned_to_text' || field === 'mac_address') {
-          updated.status = (updated.assigned_to_text.trim() || updated.mac_address.trim()) ? 'ASSIGNED' : 'AVAILABLE';
+          const hasUser = updated.assigned_to_text && updated.assigned_to_text.trim();
+          const hasMac = updated.mac_address && updated.mac_address.trim();
+          updated.status = (hasUser || hasMac) ? 'ASSIGNED' : 'AVAILABLE';
         }
         return updated;
       }
@@ -82,6 +83,7 @@ export default function IpManagement() {
     }));
   };
 
+  // Guardado individual
   const saveSingleRow = async (row) => {
     try {
       const { error } = await supabase
@@ -102,6 +104,32 @@ export default function IpManagement() {
     }
   };
 
+  // Guardado global / masivo
+  const saveAllRows = async () => {
+    setSavingGlobal(true);
+    try {
+      const recordsToSave = ipList.map(row => ({
+        ip_address: row.ip_address,
+        device_type: row.device_type,
+        status: row.status,
+        mac_address: row.mac_address,
+        assigned_user_text: row.assigned_to_text,
+        notes: row.notes
+      }));
+
+      const { error } = await supabase
+        .from('ip_addresses')
+        .upsert(recordsToSave, { onConflict: 'ip_address' });
+
+      if (error) throw error;
+      alert(`Segmento ${segment}.X guardado globalmente con éxito (${recordsToSave.length} registros).`);
+    } catch (err) {
+      alert(`Error al guardar el segmento en Supabase: ${err.message}`);
+    } finally {
+      setSavingGlobal(false);
+    }
+  };
+
   const filteredIps = ipList.filter(item => {
     const matchesFilter = filter === 'ALL' || item.status === filter;
     const matchesSearch = item.ip_address.includes(searchTerm) ||
@@ -113,6 +141,7 @@ export default function IpManagement() {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Encabezado con Botón Guardar Global */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
@@ -120,8 +149,18 @@ export default function IpManagement() {
           </h1>
           <p className="text-sm text-gray-500">Plantilla dinámica de direccionamiento por segmento (1.1 al 1.254).</p>
         </div>
+
+        <button
+          onClick={saveAllRows}
+          disabled={savingGlobal || loading}
+          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-colors disabled:opacity-50"
+        >
+          <HardDriveDownload size={18} />
+          {savingGlobal ? 'Guardando Segmento...' : 'Guardar Todo el Segmento'}
+        </button>
       </div>
 
+      {/* Selector de Segmento y Filtros */}
       <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col sm:flex-row gap-4 justify-between items-center">
         <form onSubmit={handleSegmentChange} className="flex items-center gap-2 w-full sm:w-auto">
           <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">Red / Segmento:</label>
@@ -155,6 +194,7 @@ export default function IpManagement() {
         </div>
       </div>
 
+      {/* Buscador Rápido */}
       <div className="relative">
         <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
         <input
@@ -166,6 +206,7 @@ export default function IpManagement() {
         />
       </div>
 
+      {/* Tabla Interactiva */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-gray-500">Generando plantilla del segmento {segment}.X...</div>
@@ -243,7 +284,7 @@ export default function IpManagement() {
                       <button
                         onClick={() => saveSingleRow(row)}
                         className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors"
-                        title="Guardar registro"
+                        title="Guardar este registro"
                       >
                         <Save size={16} />
                       </button>
