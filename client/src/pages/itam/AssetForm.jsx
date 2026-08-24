@@ -1,302 +1,265 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react';
+import { Save, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
 import { supabase } from '../../services/supabase';
-import { UserPlus, Save, ArrowLeft, X } from 'lucide-react';
+import { ASSET_TYPES, ASSET_STATUS } from '../../utils/constants';
 
-export default function AssetForm() {
+export default function AssetEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const [employees, setEmployees] = useState([]);
-  const [loading, setLoading] = useState(false);
-  
-  // Modal de usuario rápido
-  const [showUserModal, setShowUserModal] = useState(false);
-  const [newUserName, setNewUserName] = useState('');
-  const [newUserDept, setNewUserDept] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [errorMsg, setErrorMsg] = useState(null);
 
   const [formData, setFormData] = useState({
-    asset_code: '',
-    category: 'Laptop',
+    asset_tag: '',
+    asset_type: '',
     brand: '',
     model: '',
     serial_number: '',
-    department: '',
-    status: 'Disponible',
-    assigned_to: '',
-    notes: ''
+    status: '',
+    condition: '',
+    location: '',
+    purchase_price: '',
+    purchase_date: '',
+    warranty_until: '',
+    notes: '',
   });
 
+  // Cargar los datos actuales del activo
   useEffect(() => {
-    fetchEmployees();
+    async function fetchAsset() {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('assets')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (error) throw error;
+        if (data) {
+          setFormData({
+            asset_tag: data.asset_tag || data.asset_code || '',
+            asset_type: data.asset_type || data.category || '',
+            brand: data.brand || '',
+            model: data.model || '',
+            serial_number: data.serial_number || '',
+            status: data.status || '',
+            condition: data.condition || '',
+            location: data.location || '',
+            purchase_price: data.purchase_price || '',
+            purchase_date: data.purchase_date || '',
+            warranty_until: data.warranty_until || '',
+            notes: data.notes || '',
+          });
+        }
+      } catch (err) {
+        setErrorMsg('Error al cargar la información del equipo.');
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
     if (id) fetchAsset();
   }, [id]);
 
-  const fetchEmployees = async () => {
-    const { data } = await supabase.from('employees').select('*').order('full_name');
-    setEmployees(data || []);
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const fetchAsset = async () => {
-    const { data } = await supabase.from('assets').select('*').eq('id', id).single();
-    if (data) setFormData(data);
-  };
-
-  // Auto-completar el departamento al seleccionar un empleado existente
-  const handleUserChange = (e) => {
-    const selectedId = e.target.value;
-    const selectedEmp = employees.find(emp => emp.id === selectedId);
-    
-    setFormData(prev => ({
-      ...prev,
-      assigned_to: selectedId,
-      department: selectedEmp?.department || prev.department,
-      status: selectedId ? 'Asignado' : 'Disponible'
-    }));
-  };
-
-  const handleQuickAddUser = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!newUserName.trim()) return;
+    setSaving(true);
+    setErrorMsg(null);
 
     try {
-      const { data, error } = await supabase
-        .from('employees')
-        .insert([{ full_name: newUserName, department: newUserDept }])
-        .select()
-        .single();
+      const { error } = await supabase
+        .from('assets')
+        .update(formData)
+        .eq('id', id);
 
       if (error) throw error;
 
-      setEmployees(prev => [...prev, data]);
-      setFormData(prev => ({ 
-        ...prev, 
-        assigned_to: data.id, 
-        department: data.department || prev.department,
-        status: 'Asignado' 
-      }));
-      
-      setNewUserName('');
-      setNewUserDept('');
-      setShowUserModal(false);
+      // Volver a la lista al guardar correctamente
+      navigate('/assets');
     } catch (err) {
-      alert(`Error al agregar usuario: ${err.message}`);
+      setErrorMsg(err.message || 'Error al actualizar el registro.');
+    } finally {
+      setSaving(false);
     }
   };
 
- const handleSubmit = async (e) => {
-  e.preventDefault();
-  setLoading(true);
-  try {
-    const payload = {
-      ...formData,
-      asset_tag: formData.asset_code,   // Asigna asset_tag si la BD lo pide
-      asset_type: formData.category,    // Asigna asset_type enviando la categoría
-      status: formData.assigned_to ? 'Asignado' : formData.status
-    };
-
-    const { error } = id
-      ? await supabase.from('assets').update(payload).eq('id', id)
-      : await supabase.from('assets').insert([payload]);
-
-    if (error) throw error;
+  // Función para regresar sin guardar
+  const handleCancel = () => {
     navigate('/assets');
-  } catch (err) {
-    alert(`Error al guardar: ${err.message}`);
-  } finally {
-    setLoading(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-[300px]">
+        <Loader2 className="animate-spin text-brand-500" size={32} />
+      </div>
+    );
   }
-};
 
   return (
-    <div className="max-w-3xl mx-auto p-6 space-y-6">
-      <div className="flex items-center gap-4">
-        <button onClick={() => navigate('/assets')} className="p-2 hover:bg-gray-100 rounded-lg">
-          <ArrowLeft size={20} />
+    <div className="max-w-4xl mx-auto space-y-6">
+      {/* Encabezado */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">Editar Activo</h1>
+        <button
+          type="button"
+          onClick={handleCancel}
+          className="btn-secondary text-sm flex items-center gap-2"
+        >
+          <ArrowLeft size={16} />
+          <span>Volver / Cancelar</span>
         </button>
-        <h1 className="text-xl font-bold text-gray-900">
-          {id ? 'Editar Equipo' : 'Nuevo Equipo'}
-        </h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Código de Activo</label>
-            <input
-              type="text"
-              required
-              value={formData.asset_code}
-              onChange={e => setFormData({ ...formData, asset_code: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg text-sm"
-              placeholder="Ej: ESQ870001"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Categoría</label>
-            <select
-              value={formData.category}
-              onChange={e => setFormData({ ...formData, category: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg text-sm bg-white"
-            >
-              <option value="Laptop">Laptop</option>
-              <option value="Desktop">Desktop</option>
-              <option value="Servidor">Servidor</option>
-              <option value="Switch">Switch</option>
-              <option value="Impresora">Impresora</option>
-            </select>
-          </div>
+      {errorMsg && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 text-red-700 text-sm rounded-lg border border-red-200">
+          <AlertCircle size={16} className="shrink-0" />
+          <span>{errorMsg}</span>
         </div>
+      )}
 
-        <div className="grid grid-cols-3 gap-4">
+      {/* Formulario */}
+      <form onSubmit={handleSubmit} className="card space-y-6 bg-white p-6 rounded-xl border border-gray-200">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          {/* Etiqueta / Código */}
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Marca</label>
+            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+              Etiqueta / Código
+            </label>
             <input
               type="text"
-              value={formData.brand}
-              onChange={e => setFormData({ ...formData, brand: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Modelo</label>
-            <input
-              type="text"
-              value={formData.model}
-              onChange={e => setFormData({ ...formData, model: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Número de Serie (SN)</label>
-            <input
-              type="text"
+              name="asset_tag"
+              value={formData.asset_tag}
+              onChange={handleChange}
+              /* text-gray-900 y bg-white aseguran visibilidad del texto */
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
               required
-              placeholder="SN-XXXXXX"
-              value={formData.serial_number}
-              onChange={e => setFormData({ ...formData, serial_number: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg text-sm font-mono"
             />
           </div>
-        </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          {/* Campo Asignación con Botón para Crear Usuario */}
+          {/* Tipo de Activo */}
           <div>
-            <div className="flex justify-between items-center mb-1">
-              <label className="text-xs font-semibold text-gray-700">Usuario Asignado</label>
-              <button
-                type="button"
-                onClick={() => setShowUserModal(true)}
-                className="text-xs text-blue-600 font-semibold hover:underline flex items-center gap-1"
-              >
-                <UserPlus size={14} /> + Crear Usuario
-              </button>
-            </div>
-
+            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+              Tipo
+            </label>
             <select
-              value={formData.assigned_to}
-              onChange={handleUserChange}
-              className="w-full px-3 py-2 border rounded-lg text-sm bg-white"
+              name="asset_type"
+              value={formData.asset_type}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
             >
-              <option value="">Sin Asignar</option>
-              {employees.map(emp => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.full_name} {emp.department ? `(${emp.department})` : ''}
+              <option value="">Seleccionar tipo</option>
+              {ASSET_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
                 </option>
               ))}
             </select>
           </div>
 
+          {/* Marca */}
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Departamento</label>
+            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+              Marca
+            </label>
             <input
               type="text"
-              placeholder="Ej: Finanzas / Sistemas"
-              value={formData.department}
-              onChange={e => setFormData({ ...formData, department: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg text-sm"
+              name="brand"
+              value={formData.brand}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
             />
+          </div>
+
+          {/* Modelo */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+              Modelo
+            </label>
+            <input
+              type="text"
+              name="model"
+              value={formData.model}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
+            />
+          </div>
+
+          {/* Número de Serie */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+              Nº Serie
+            </label>
+            <input
+              type="text"
+              name="serial_number"
+              value={formData.serial_number}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
+            />
+          </div>
+
+          {/* Estado */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+              Estado
+            </label>
+            <select
+              name="status"
+              value={formData.status}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
+            >
+              <option value="">Seleccionar estado</option>
+              {ASSET_STATUS.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-gray-700 mb-1">Notas / Observaciones</label>
-          <textarea
-            rows="3"
-            value={formData.notes}
-            onChange={e => setFormData({ ...formData, notes: e.target.value })}
-            className="w-full px-3 py-2 border rounded-lg text-sm"
-          />
-        </div>
-
-        <div className="flex justify-end gap-2 pt-2">
+        {/* Botones de Acción inferior */}
+        <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+          <button
+            type="button"
+            onClick={handleCancel}
+            disabled={saving}
+            className="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            Cancelar
+          </button>
           <button
             type="submit"
-            disabled={loading}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-semibold"
+            disabled={saving}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
           >
-            <Save size={16} /> {loading ? 'Guardando...' : 'Guardar Equipo'}
+            {saving ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                <span>Guardando...</span>
+              </>
+            ) : (
+              <>
+                <Save size={16} />
+                <span>Guardar Cambios</span>
+              </>
+            )}
           </button>
         </div>
       </form>
-
-      {/* Modal para Crear Usuario Rápido */}
-      {showUserModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl p-6 max-w-sm w-full space-y-4 shadow-xl">
-            <div className="flex justify-between items-center border-b pb-2">
-              <h3 className="font-bold text-gray-900 text-base">Registrar Nuevo Empleado</h3>
-              <button onClick={() => setShowUserModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleQuickAddUser} className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Nombre Completo *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ej: Juan Pérez"
-                  value={newUserName}
-                  onChange={e => setNewUserName(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg text-sm"
-                  autoFocus
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Departamento</label>
-                <input
-                  type="text"
-                  placeholder="Ej: Contabilidad / IT"
-                  value={newUserDept}
-                  onChange={e => setNewUserDept(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg text-sm"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowUserModal(false)}
-                  className="px-3 py-1.5 text-xs text-gray-600 bg-gray-100 rounded-lg"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 text-xs text-white bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold"
-                >
-                  Guardar y Seleccionar
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
