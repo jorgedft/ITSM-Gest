@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom'; // ✅ Importación corregida
+import { useNavigate, useParams } from 'react-router-dom';
 import { Save, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
 import { supabase } from '../../services/supabase';
 import { ASSET_TYPES, ASSET_STATUS } from '../../utils/constants';
@@ -9,7 +9,8 @@ export default function AssetForm() {
   const navigate = useNavigate();
   const isEditing = Boolean(id);
 
-  const [loading, setLoading] = useState(isEditing);
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
 
@@ -21,6 +22,7 @@ export default function AssetForm() {
     serial_number: '',
     status: '',
     condition: '',
+    assigned_to: '',
     location: '',
     purchase_price: '',
     purchase_date: '',
@@ -28,45 +30,57 @@ export default function AssetForm() {
     notes: '',
   });
 
-  // Cargar datos únicamente en modo edición
+  // Cargar lista de empleados para la asignación y los datos del activo si se está editando
   useEffect(() => {
-    if (!isEditing) return;
-
-    async function fetchAsset() {
+    async function loadInitialData() {
       try {
         setLoading(true);
-        const { data, error } = await supabase
-          .from('assets')
-          .select('*')
-          .eq('id', id)
-          .single();
 
-        if (error) throw error;
-        if (data) {
-          setFormData({
-            asset_tag: data.asset_tag || data.asset_code || '',
-            asset_type: data.asset_type || data.category || '',
-            brand: data.brand || '',
-            model: data.model || '',
-            serial_number: data.serial_number || '',
-            status: data.status || '',
-            condition: data.condition || '',
-            location: data.location || '',
-            purchase_price: data.purchase_price || '',
-            purchase_date: data.purchase_date || '',
-            warranty_until: data.warranty_until || '',
-            notes: data.notes || '',
-          });
+        // 1. Obtener empleados para el selector
+        const { data: empData, error: empErr } = await supabase
+          .from('employees')
+          .select('id, full_name, department')
+          .order('full_name', { ascending: true });
+
+        if (empErr) console.error('Error al obtener empleados:', empErr);
+        else setEmployees(empData || []);
+
+        // 2. Si se trata de una edición, cargar los datos del activo
+        if (isEditing) {
+          const { data, error } = await supabase
+            .from('assets')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+          if (error) throw error;
+          if (data) {
+            setFormData({
+              asset_tag: data.asset_tag || data.asset_code || '',
+              asset_type: data.asset_type || data.category || '',
+              brand: data.brand || '',
+              model: data.model || '',
+              serial_number: data.serial_number || '',
+              status: data.status || '',
+              condition: data.condition || '',
+              assigned_to: data.assigned_to || '',
+              location: data.location || '',
+              purchase_price: data.purchase_price || '',
+              purchase_date: data.purchase_date || '',
+              warranty_until: data.warranty_until || '',
+              notes: data.notes || '',
+            });
+          }
         }
       } catch (err) {
-        setErrorMsg('Error al cargar la información del equipo.');
+        setErrorMsg('Error al cargar la información del formulario.');
         console.error(err);
       } finally {
         setLoading(false);
       }
     }
 
-    fetchAsset();
+    loadInitialData();
   }, [id, isEditing]);
 
   const handleChange = (e) => {
@@ -79,19 +93,21 @@ export default function AssetForm() {
     setSaving(true);
     setErrorMsg(null);
 
+    // Preparar payload formateando campos nulos si vienen vacíos
+    const payload = {
+      ...formData,
+      assigned_to: formData.assigned_to || null,
+      purchase_price: formData.purchase_price ? parseFloat(formData.purchase_price) : null,
+      purchase_date: formData.purchase_date || null,
+      warranty_until: formData.warranty_until || null,
+    };
+
     try {
       if (isEditing) {
-        // Actualizar activo existente
-        const { error } = await supabase
-          .from('assets')
-          .update(formData)
-          .eq('id', id);
+        const { error } = await supabase.from('assets').update(payload).eq('id', id);
         if (error) throw error;
       } else {
-        // Crear nuevo activo
-        const { error } = await supabase
-          .from('assets')
-          .insert([formData]);
+        const { error } = await supabase.from('assets').insert([payload]);
         if (error) throw error;
       }
 
@@ -101,10 +117,6 @@ export default function AssetForm() {
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleCancel = () => {
-    navigate('/assets');
   };
 
   if (loading) {
@@ -123,7 +135,7 @@ export default function AssetForm() {
         </h1>
         <button
           type="button"
-          onClick={handleCancel}
+          onClick={() => navigate('/assets')}
           className="btn-secondary text-sm flex items-center gap-2"
         >
           <ArrowLeft size={16} />
@@ -139,103 +151,203 @@ export default function AssetForm() {
       )}
 
       <form onSubmit={handleSubmit} className="card space-y-6 bg-white p-6 rounded-xl border border-gray-200">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
-              Etiqueta / Código
-            </label>
-            <input
-              type="text"
-              name="asset_tag"
-              value={formData.asset_tag}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
-              required
-            />
-          </div>
+        
+        {/* Sección: Datos Generales */}
+        <div>
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Información Principal</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+                Etiqueta / Código *
+              </label>
+              <input
+                type="text"
+                name="asset_tag"
+                value={formData.asset_tag}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
+                required
+              />
+            </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
-              Tipo
-            </label>
-            <select
-              name="asset_type"
-              value={formData.asset_type}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
-            >
-              <option value="">Seleccionar tipo</option>
-              {ASSET_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-          </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+                Tipo de Activo
+              </label>
+              <select
+                name="asset_type"
+                value={formData.asset_type}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
+              >
+                <option value="">Seleccionar tipo</option>
+                {ASSET_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </select>
+            </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
-              Marca
-            </label>
-            <input
-              type="text"
-              name="brand"
-              value={formData.brand}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
-            />
-          </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Marca</label>
+              <input
+                type="text"
+                name="brand"
+                value={formData.brand}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
+              />
+            </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
-              Modelo
-            </label>
-            <input
-              type="text"
-              name="model"
-              value={formData.model}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
-            />
-          </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Modelo</label>
+              <input
+                type="text"
+                name="model"
+                value={formData.model}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
+              />
+            </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
-              Nº Serie
-            </label>
-            <input
-              type="text"
-              name="serial_number"
-              value={formData.serial_number}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
-            />
-          </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Nº Serie</label>
+              <input
+                type="text"
+                name="serial_number"
+                value={formData.serial_number}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
+              />
+            </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
-              Estado
-            </label>
-            <select
-              name="status"
-              value={formData.status}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
-            >
-              <option value="">Seleccionar estado</option>
-              {ASSET_STATUS.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Estado</label>
+              <select
+                name="status"
+                value={formData.status}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
+              >
+                <option value="">Seleccionar estado</option>
+                {ASSET_STATUS.map((s) => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
+        {/* Sección: Asignación y Ubicación */}
+        <div className="pt-4 border-t border-gray-100">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Asignación y Ubicación</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Asignado a</label>
+              <select
+                name="assigned_to"
+                value={formData.assigned_to}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
+              >
+                <option value="">Sin asignar</option>
+                {employees.map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.full_name} {emp.department ? `(${emp.department})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Condición</label>
+              <select
+                name="condition"
+                value={formData.condition}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
+              >
+                <option value="">Seleccionar condición</option>
+                <option value="nuevo">Nuevo</option>
+                <option value="excelente">Excelente</option>
+                <option value="bueno">Bueno</option>
+                <option value="regular">Regular</option>
+                <option value="malo">Malo / Para reparación</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Ubicación / Oficina</label>
+              <input
+                type="text"
+                name="location"
+                value={formData.location}
+                onChange={handleChange}
+                placeholder="Ej. Oficina Central, Piso 2"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Sección: Datos Financieros y Garantía */}
+        <div className="pt-4 border-t border-gray-100">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Detalles de Compra y Garantía</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Precio de Compra</label>
+              <input
+                type="number"
+                step="0.01"
+                name="purchase_price"
+                value={formData.purchase_price}
+                onChange={handleChange}
+                placeholder="0.00"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Fecha de Compra</label>
+              <input
+                type="date"
+                name="purchase_date"
+                value={formData.purchase_date}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Vencimiento de Garantía</label>
+              <input
+                type="date"
+                name="warranty_until"
+                value={formData.warranty_until}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Sección: Notas */}
+        <div className="pt-4 border-t border-gray-100">
+          <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Notas Adicionales</label>
+          <textarea
+            name="notes"
+            rows={3}
+            value={formData.notes}
+            onChange={handleChange}
+            placeholder="Observaciones sobre el estado del equipo, accesorios incluidos..."
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
+          />
+        </div>
+
+        {/* Acciones */}
         <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
           <button
             type="button"
-            onClick={handleCancel}
+            onClick={() => navigate('/assets')}
             disabled={saving}
             className="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
           >
