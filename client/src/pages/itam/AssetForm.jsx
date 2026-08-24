@@ -89,35 +89,42 @@ export default function AssetForm() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    setErrorMsg(null);
+  e.preventDefault();
+  setSaving(true);
+  setErrorMsg(null);
 
-    // Preparar payload formateando campos nulos si vienen vacíos
-    const payload = {
-      ...formData,
-      assigned_to: formData.assigned_to || null,
-      purchase_price: formData.purchase_price ? parseFloat(formData.purchase_price) : null,
-      purchase_date: formData.purchase_date || null,
-      warranty_until: formData.warranty_until || null,
-    };
-
-    try {
-      if (isEditing) {
-        const { error } = await supabase.from('assets').update(payload).eq('id', id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from('assets').insert([payload]);
-        if (error) throw error;
-      }
-
-      navigate('/assets');
-    } catch (err) {
-      setErrorMsg(err.message || 'Error al guardar el registro.');
-    } finally {
-      setSaving(false);
-    }
+  // Convertir cadenas vacías en null para no romper los tipos DATE / NUMERIC en Supabase
+  const payload = {
+    ...formData,
+    assigned_to: formData.assigned_to || null,
+    purchase_price: formData.purchase_price ? parseFloat(formData.purchase_price) : null,
+    purchase_date: formData.purchase_date || null,
+    warranty_until: formData.warranty_until || null,
+    // Asegurar que campos de texto opcionales no envíen solo espacios
+    brand: formData.brand || null,
+    model: formData.model || null,
+    serial_number: formData.serial_number || null,
+    condition: formData.condition || null,
+    location: formData.location || null,
+    notes: formData.notes || null,
   };
+
+  try {
+    if (isEditing) {
+      const { error } = await supabase.from('assets').update(payload).eq('id', id);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase.from('assets').insert([payload]);
+      if (error) throw error;
+    }
+
+    navigate('/assets');
+  } catch (err) {
+    setErrorMsg(err.message || 'Error al guardar el registro.');
+  } finally {
+    setSaving(false);
+  }
+};
 
   if (loading) {
     return (
