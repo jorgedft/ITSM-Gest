@@ -9,6 +9,8 @@ import { ExportButtons } from "../../components/ui/ExportButtons";
 import { exportToExcel, exportToPDF } from "../../utils/exportUtils";
 import { fDate, fCurrency } from "../../utils/formatters";
 import { ASSET_TYPES, ASSET_STATUS } from "../../utils/constants";
+
+// Importación directa del modal de importación
 import { ImportAssetsModal } from "../../components/assets/ImportAssetsModal";
 
 const COLS = [
@@ -61,7 +63,7 @@ export default function AssetList() {
     try {
       const { error } = await supabase.from("assets").delete().eq("id", id);
       if (error) throw error;
-      load(); // Recargar la lista tras eliminar
+      load();
     } catch (err) {
       alert(`Error al eliminar el equipo: ${err.message}`);
     }
