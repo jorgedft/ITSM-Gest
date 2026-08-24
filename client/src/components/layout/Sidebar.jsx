@@ -4,6 +4,7 @@ import {
     Ticket, Shield, Network, Wrench, LogOut, ChevronLeft, Key
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import logoEmpresa from '../../assets/logo.png'; // 👈 Importación directa
 
 const NAV = [
     { to: '/dashboard',   label: 'Dashboard',     icon: LayoutDashboard },
@@ -36,7 +37,7 @@ export function Sidebar({ collapsed, onToggle }) {
                         </div>
                         {/* Logo Ubicado Debajo */}
                         <img 
-                            src="/logo.png" 
+                            src={logoEmpresa} 
                             alt="Logo Empresa" 
                             className="h-8 w-auto object-contain mt-1" 
                         />
@@ -45,7 +46,7 @@ export function Sidebar({ collapsed, onToggle }) {
                     /* Vista cuando el Sidebar está colapsado */
                     <div className="mx-auto">
                         <img 
-                            src="/logo.png" 
+                            src={logoEmpresa} 
                             alt="Logo" 
                             className="h-6 w-auto object-contain" 
                         />
