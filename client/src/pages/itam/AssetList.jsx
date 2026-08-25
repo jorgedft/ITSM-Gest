@@ -39,45 +39,53 @@ export default function AssetList() {
 
   // 👇 Detecta cada vez que vuelves a /assets (incluso si el componente NO se desmonta)
   const location = useLocation();
-
-  const load = useCallback(async () => {
+const load = useCallback(async () => {
   setLoading(true);
   const from = (page - 1) * LIMIT, to = from + LIMIT - 1;
 
-  // Usa LEFT JOIN opcional (!left) para evitar desechar filas cuyo assigned_to sea texto plano o no exista en employees
-  let q = supabase
-    .from("assets")
-    .select("*, assignee:employees!assets_assigned_to_fkey(full_name,department)", { count: "exact" })
-    .range(from, to)
-    .order("created_at", { ascending: false });
+  try {
+    // Intentamos cargar con relación (haciendo uso de left join)
+    let q = supabase
+      .from("assets")
+      .select("*, employees!left(full_name, department)", { count: "exact" })
+      .range(from, to)
+      .order("created_at", { ascending: false });
 
-  if (filters.status) q = q.eq("status", filters.status);
-  if (filters.type)   q = q.eq("asset_type", filters.type);
-  if (search) {
-    q = q.or(
-      `asset_code.ilike.%${search}%,asset_tag.ilike.%${search}%,brand.ilike.%${search}%,model.ilike.%${search}%,serial_number.ilike.%${search}%,assigned_to.ilike.%${search}%`
-    );
-  }
+    if (filters.status) q = q.eq("status", filters.status);
+    if (filters.type)   q = q.eq("asset_type", filters.type);
+    if (search) {
+      q = q.or(`asset_code.ilike.%${search}%,asset_tag.ilike.%${search}%,brand.ilike.%${search}%,model.ilike.%${search}%,serial_number.ilike.%${search}%`);
+    }
 
-  const { data, count, error } = await q;
+    const { data, count, error } = await q;
 
-  if (error) {
-    console.error("Error al cargar activos:", error);
-    // Si la relación por FK falla completamente debido a texto libre en assigned_to, hacemos fallback a una consulta limpia:
-    const fallback = await supabase
+    if (error) throw error;
+
+    setAssets(data || []);
+    setTotal(count || 0);
+
+  } catch (err) {
+    console.warn("Fallo el Join con empleados, realizando fallback a consulta directa:", err.message);
+
+    // FALLBACK: Si falla la relación, trae solo los activos sin romper la interfaz
+    let fallbackQuery = supabase
       .from("assets")
       .select("*", { count: "exact" })
       .range(from, to)
       .order("created_at", { ascending: false });
-    
-    setAssets(fallback.data || []);
-    setTotal(fallback.count || 0);
-  } else {
-    setAssets(data || []);
-    setTotal(count || 0);
-  }
 
-  setLoading(false);
+    if (filters.status) fallbackQuery = fallbackQuery.eq("status", filters.status);
+    if (filters.type)   fallbackQuery = fallbackQuery.eq("asset_type", filters.type);
+    if (search) {
+      fallbackQuery = fallbackQuery.or(`asset_code.ilike.%${search}%,asset_tag.ilike.%${search}%,brand.ilike.%${search}%,model.ilike.%${search}%,serial_number.ilike.%${search}%`);
+    }
+
+    const { data: fbData, count: fbCount } = await fallbackQuery;
+    setAssets(fbData || []);
+    setTotal(fbCount || 0);
+  } finally {
+    setLoading(false);
+  }
 }, [page, filters, search]);
 
   useEffect(()=>{load();},[load]);
