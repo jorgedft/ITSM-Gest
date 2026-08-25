@@ -3,6 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../../services/supabase';
 import { ArrowLeft, Save } from 'lucide-react';
 
+const inputClass =
+  'w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
+
 export default function PhoneForm() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -102,7 +105,7 @@ export default function PhoneForm() {
             required
             value={formData.brand}
             onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            className={inputClass}
             placeholder="Samsung, Apple, Xiaomi..."
           />
         </div>
@@ -114,7 +117,7 @@ export default function PhoneForm() {
             required
             value={formData.model}
             onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            className={inputClass}
             placeholder="Galaxy A54, iPhone 13..."
           />
         </div>
@@ -126,7 +129,7 @@ export default function PhoneForm() {
             required
             value={formData.imei}
             onChange={(e) => setFormData({ ...formData, imei: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            className={inputClass}
             placeholder="358912345678901"
           />
         </div>
@@ -137,7 +140,7 @@ export default function PhoneForm() {
             type="text"
             value={formData.phone_number}
             onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            className={inputClass}
             placeholder="+52 55 1234 5678"
           />
         </div>
@@ -147,13 +150,21 @@ export default function PhoneForm() {
           <select
             value={formData.assigned_to}
             onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            className={inputClass}
           >
             <option value="">Sin Asignar</option>
             {users.map((u) => (
               <option key={u.id} value={u.id}>{u.full_name || u.id}</option>
             ))}
           </select>
+          {isEdit && formData.assigned_to && (
+            <p className="mt-1 text-xs text-gray-500">
+              Actualmente asignado a:{' '}
+              <span className="font-medium text-gray-700">
+                {users.find((u) => u.id === formData.assigned_to)?.full_name || 'Usuario desconocido'}
+              </span>
+            </p>
+          )}
         </div>
 
         <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
