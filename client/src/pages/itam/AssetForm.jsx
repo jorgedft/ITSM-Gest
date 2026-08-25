@@ -97,7 +97,7 @@ export default function AssetForm() {
       asset_tag: formData.asset_tag,
       asset_type: formData.asset_type || null,
       brand: formData.brand || null,
-      model: formData.model || null,
+      model: formData.model || '',
       serial_number: formData.serial_number || null,
       status: formData.status || null,
       condition: formData.condition || null,
@@ -109,14 +109,23 @@ export default function AssetForm() {
 
     try {
       if (isEditing) {
-        const { error } = await supabase.from('assets').update(payload).eq('id', id);
+        const { error } = await supabase
+          .from('assets')
+          .update(payload)
+          .eq('id', id)
+          .select();
+          
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('assets').insert([payload]);
+        const { error } = await supabase
+          .from('assets')
+          .insert([payload])
+          .select();
+
         if (error) throw error;
       }
 
-      navigate('/assets');
+      navigate('/assets', { replace: true });
     } catch (err) {
       setErrorMsg(err.message || 'Error al guardar el registro.');
     } finally {
@@ -251,7 +260,6 @@ export default function AssetForm() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             
-            {/* Campo Asignado a (Doble Clic para escribir texto libre o seleccionar) */}
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-xs font-semibold text-gray-700 uppercase">
@@ -297,22 +305,22 @@ export default function AssetForm() {
             </div>
 
             <div>
-  <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
-    Condición
-  </label>
-  <select
-    name="condition"
-    value={formData.condition}
-    onChange={handleChange}
-    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
-  >
-    <option value="">Seleccionar condición</option>
-    <option value="new">Nuevo</option>
-    <option value="good">Bueno</option>
-    <option value="fair">Regular</option>
-    <option value="poor">Malo / Para reparación</option>
-  </select>
-</div>
+              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+                Condición
+              </label>
+              <select
+                name="condition"
+                value={formData.condition}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
+              >
+                <option value="">Seleccionar condición</option>
+                <option value="new">Nuevo</option>
+                <option value="good">Bueno</option>
+                <option value="fair">Regular</option>
+                <option value="poor">Malo / Para reparación</option>
+              </select>
+            </div>
 
             <div>
               <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Ubicación / Oficina</label>
