@@ -222,17 +222,21 @@ export default function AssetForm({ assetToEdit, onSuccess, onCancel }) {
           <div>
             <label className="label">Ubicación / Oficina</label>
             <select
-              name="location"
-              value={formData.location}
-              onChange={handleChange}
-              className="input-field"
-            >
-              {LOCATIONS.map((loc) => (
-                <option key={loc} value={loc}>
-                  {loc}
-                </option>
-              ))}
-            </select>
+  name="location"
+  value={formData.location}
+  onChange={handleChange}
+  className="input-field"
+>
+  {LOCATIONS.map((loc) => {
+    const value = typeof loc === 'object' ? loc.value : loc;
+    const label = typeof loc === 'object' ? loc.label : loc;
+    return (
+      <option key={value} value={value}>
+        {label}
+      </option>
+    );
+  })}
+</select>
           </div>
         </div>
       </div>
