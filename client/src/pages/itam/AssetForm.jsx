@@ -297,21 +297,22 @@ export default function AssetForm() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Condición</label>
-              <select
-                name="condition"
-                value={formData.condition}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
-              >
-                <option value="">Seleccionar condición</option>
-                <option value="nuevo">Nuevo</option>
-                <option value="excelente">Excelente</option>
-                <option value="bueno">Bueno</option>
-                <option value="regular">Regular</option>
-                <option value="malo">Malo / Para reparación</option>
-              </select>
-            </div>
+  <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+    Condición
+  </label>
+  <select
+    name="condition"
+    value={formData.condition}
+    onChange={handleChange}
+    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
+  >
+    <option value="">Seleccionar condición</option>
+    <option value="new">Nuevo</option>
+    <option value="good">Bueno</option>
+    <option value="fair">Regular</option>
+    <option value="poor">Malo / Para reparación</option>
+  </select>
+</div>
 
             <div>
               <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Ubicación / Oficina</label>
