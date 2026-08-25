@@ -2,8 +2,33 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/services/supabase';
 import { ASSET_TYPES, LOCATIONS } from '@/utils/constants';
 import AssetForm from './AssetForm';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const LIMIT = 10;
+
+function escapeCSV(value) {
+  const str = String(value ?? '');
+  if (/[",\n]/.test(str)) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
 
 export default function AssetList() {
   const [assets, setAssets] = useState([]);
@@ -13,10 +38,29 @@ export default function AssetList() {
   const [search, setSearch] = useState('');
   const [selectedType, setSelectedType] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('');
+  const [exporting, setExporting] = useState(false);
 
   // Estados para Modal / Formulario
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState(null);
+
+  // Aplica los filtros/búsqueda activos a cualquier query de Supabase.
+  // Se reutiliza tanto para cargar la página actual como para exportar.
+  const applyFilters = useCallback((query) => {
+    let q = query;
+    if (selectedType) {
+      q = q.eq('asset_type', selectedType);
+    }
+    if (selectedLocation) {
+      q = q.eq('location', selectedLocation);
+    }
+    if (search.trim()) {
+      q = q.or(
+        `asset_tag.ilike.%${search}%,brand.ilike.%${search}%,model.ilike.%${search}%,serial_number.ilike.%${search}%,assigned_to.ilike.%${search}%,status.ilike.%${search}%`
+      );
+    }
+    return q;
+  }, [selectedType, selectedLocation, search]);
 
   const loadAssets = useCallback(async () => {
     setLoading(true);
@@ -29,17 +73,7 @@ export default function AssetList() {
       .range(from, to)
       .order('created_at', { ascending: false });
 
-    if (selectedType) {
-      query = query.eq('asset_type', selectedType);
-    }
-    if (selectedLocation) {
-      query = query.eq('location', selectedLocation);
-    }
-    if (search.trim()) {
-      query = query.or(
-        `asset_tag.ilike.%${search}%,brand.ilike.%${search}%,model.ilike.%${search}%,serial_number.ilike.%${search}%,assigned_to.ilike.%${search}%,status.ilike.%${search}%`
-      );
-    }
+    query = applyFilters(query);
 
     const { data, count, error } = await query;
 
@@ -50,11 +84,25 @@ export default function AssetList() {
       setTotal(count || 0);
     }
     setLoading(false);
-  }, [page, search, selectedType, selectedLocation]);
+  }, [page, applyFilters]);
 
   useEffect(() => {
     loadAssets();
   }, [loadAssets]);
+
+  // Trae TODOS los registros que cumplan el filtro/búsqueda actual (sin paginar), para exportar.
+  const fetchAllForExport = useCallback(async () => {
+    let query = supabase
+      .from('assets')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    query = applyFilters(query);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  }, [applyFilters]);
 
   const handleCreateNew = () => {
     setEditingAsset(null);
@@ -94,16 +142,96 @@ export default function AssetList() {
     return statusText;
   };
 
+  const handleExportCSV = async () => {
+    try {
+      setExporting(true);
+      const data = await fetchAllForExport();
+
+      const headers = ['Etiqueta', 'Tipo', 'Marca', 'Modelo', 'SN', 'Estado'];
+      const rows = data.map((item) => [
+        item.asset_tag || item.asset_code || '',
+        item.asset_type || '',
+        item.brand || '',
+        item.model || '',
+        item.serial_number || '',
+        renderStatus(item),
+      ]);
+
+      const csvContent = [headers, ...rows]
+        .map((row) => row.map(escapeCSV).join(','))
+        .join('\r\n');
+
+      // BOM (﻿) para que Excel detecte UTF-8 y no rompa acentos/ñ
+      const blob = new Blob(['﻿' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      downloadBlob(blob, `inventario-equipos-${todayStr()}.csv`);
+    } catch (err) {
+      alert('Error al exportar CSV: ' + err.message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    try {
+      setExporting(true);
+      const data = await fetchAllForExport();
+
+      const doc = new jsPDF({ orientation: 'landscape' });
+
+      doc.setFontSize(14);
+      doc.text('Inventario de Equipos', 14, 15);
+      doc.setFontSize(9);
+      doc.setTextColor(100);
+      doc.text(`Generado: ${new Date().toLocaleString('es-MX')} — ${data.length} equipo(s)`, 14, 21);
+
+      autoTable(doc, {
+        startY: 26,
+        head: [['Etiqueta', 'Tipo', 'Marca / Modelo', 'SN', 'Estado']],
+        body: data.map((item) => [
+          item.asset_tag || item.asset_code || '—',
+          item.asset_type || '—',
+          `${item.brand || ''} ${item.model || ''}`.trim() || '—',
+          item.serial_number || '—',
+          renderStatus(item),
+        ]),
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [37, 99, 235] },
+      });
+
+      doc.save(`inventario-equipos-${todayStr()}.pdf`);
+    } catch (err) {
+      alert('Error al exportar PDF: ' + err.message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
-      {/* Cabecera y Botón Nuevo */}
+      {/* Cabecera y Botones */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Inventario de Equipos ({total})</h1>
         </div>
-        <button onClick={handleCreateNew} className="btn-primary">
-          + Nuevo Equipo
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={handleExportCSV}
+            disabled={exporting}
+            className="btn-secondary disabled:opacity-50"
+          >
+            {exporting ? 'Exportando...' : 'Exportar CSV'}
+          </button>
+          <button
+            onClick={handleExportPDF}
+            disabled={exporting}
+            className="btn-secondary disabled:opacity-50"
+          >
+            {exporting ? 'Exportando...' : 'Exportar PDF'}
+          </button>
+          <button onClick={handleCreateNew} className="btn-primary">
+            + Nuevo Equipo
+          </button>
+        </div>
       </div>
 
       {/* Filtros y Buscador */}
