@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom"; // 👈 agrega useLocation
 import { Plus, Monitor, Search, RefreshCw, Trash2, Eye, Edit, FileSpreadsheet } from "lucide-react";
 import { supabase } from "../../services/supabase";
 import { StatusBadge } from "../../components/ui/Badge";
@@ -9,8 +9,6 @@ import { ExportButtons } from "../../components/ui/ExportButtons";
 import { exportToExcel, exportToPDF } from "../../utils/exportUtils";
 import { fDate, fCurrency } from "../../utils/formatters";
 import { ASSET_TYPES, ASSET_STATUS } from "../../utils/constants";
-
-// Importación directa del modal de importación
 import { ImportAssetsModal } from "../../components/assets/ImportAssetsModal";
 
 const COLS = [
@@ -39,6 +37,9 @@ export default function AssetList() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const LIMIT = 20;
 
+  // 👇 Detecta cada vez que vuelves a /assets (incluso si el componente NO se desmonta)
+  const location = useLocation();
+
   const load = useCallback(async () => {
     setLoading(true);
     const from=(page-1)*LIMIT, to=from+LIMIT-1;
@@ -56,10 +57,23 @@ export default function AssetList() {
 
   useEffect(()=>{load();},[load]);
 
+  // 👇 FIX 1: Cuando cambia la ruta (volver desde /new o /edit), recarga y resetea a página 1
+  useEffect(() => {
+    setPage(1);
+    load();
+  }, [location.key]);
+
+  // 👇 FIX 2: Si el total cambió y la página actual está fuera de rango, vuelve a la 1
+  useEffect(() => {
+    const pages = Math.ceil(total / LIMIT);
+    if (page > pages && pages > 0) {
+      setPage(1);
+    }
+  }, [total, page]);
+
   const handleDelete = async (id, tag) => {
     const confirmDelete = window.confirm(`¿Estás seguro de que deseas eliminar el equipo con código/etiqueta "${tag || id}"?`);
     if (!confirmDelete) return;
-
     try {
       const { error } = await supabase.from("assets").delete().eq("id", id);
       if (error) throw error;
@@ -194,7 +208,6 @@ export default function AssetList() {
         )}
       </div>
 
-      {/* Modal de Importación desde Excel */}
       <ImportAssetsModal
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
