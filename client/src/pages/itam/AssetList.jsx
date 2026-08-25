@@ -37,7 +37,7 @@ export default function AssetList() {
     }
     if (search.trim()) {
       query = query.or(
-        `asset_tag.ilike.%${search}%,brand.ilike.%${search}%,model.ilike.%${search}%,serial_number.ilike.%${search}%,assigned_to.ilike.%${search}%`
+        `asset_tag.ilike.%${search}%,brand.ilike.%${search}%,model.ilike.%${search}%,serial_number.ilike.%${search}%,assigned_to.ilike.%${search}%,status.ilike.%${search}%`
       );
     }
 
@@ -81,6 +81,17 @@ export default function AssetList() {
     setIsModalOpen(false);
     setEditingAsset(null);
     loadAssets();
+  };
+
+  // Helper para concatenar el Estado y el Usuario Asignado
+  const renderStatus = (item) => {
+    const statusText = item.status || 'Disponible';
+    const assignedUser = item.assigned_to ? item.assigned_to.trim() : '';
+
+    if (assignedUser) {
+      return `${statusText} - ${assignedUser}`;
+    }
+    return statusText;
   };
 
   return (
@@ -128,43 +139,60 @@ export default function AssetList() {
         </select>
       </div>
 
-      {/* Tabla de Equipos */}
-      <div className="table-container">
-        <table className="table-app">
+      {/* Tabla de Equipos con las 5 columnas solicitadas */}
+      <div className="table-container overflow-x-auto">
+        <table className="table-app w-full text-left">
           <thead>
-            <tr>
-              <th>Etiqueta</th>
-              <th>Tipo</th>
-              <th>Marca / Modelo</th>
-              <th>Serie (SN)</th>
-              <th>Asignado a</th>
-              <th>Ubicación</th>
-              <th>Garantía</th>
-              <th className="text-right">Acciones</th>
+            <tr className="border-b bg-gray-50 text-xs font-semibold text-gray-600 uppercase">
+              <th className="py-3 px-4">Etiqueta de equipo</th>
+              <th className="py-3 px-4">Tipo</th>
+              <th className="py-3 px-4">Marca / Modelo</th>
+              <th className="py-3 px-4">SN</th>
+              <th className="py-3 px-4">Estado</th>
+              <th className="py-3 px-4 text-right">Acciones</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-gray-100 text-sm">
             {loading ? (
               <tr>
-                <td colSpan="8" className="text-center py-6 text-gray-500">Cargando equipos...</td>
+                <td colSpan="6" className="text-center py-6 text-gray-500">Cargando equipos...</td>
               </tr>
             ) : assets.length === 0 ? (
               <tr>
-                <td colSpan="8" className="text-center py-6 text-gray-500">No se encontraron equipos</td>
+                <td colSpan="6" className="text-center py-6 text-gray-500">No se encontraron equipos</td>
               </tr>
             ) : (
               assets.map((item) => (
-                <tr key={item.id}>
-                  <td className="font-semibold text-gray-900">{item.asset_tag || item.asset_code || '—'}</td>
-                  <td>{item.asset_type || '—'}</td>
-                  <td>
-                    {item.brand || ''} {item.model || ''}
+                <tr key={item.id} className="hover:bg-gray-50">
+                  {/* 1. Etiqueta de equipo */}
+                  <td className="py-3 px-4 font-semibold text-gray-900">
+                    {item.asset_tag || item.asset_code || '—'}
                   </td>
-                  <td className="font-mono text-xs">{item.serial_number || '—'}</td>
-                  <td>{item.assigned_to || '—'}</td>
-                  <td>{item.location || '—'}</td>
-                  <td>{item.warranty_info || '—'}</td>
-                  <td className="text-right space-x-2">
+
+                  {/* 2. Tipo */}
+                  <td className="py-3 px-4">{item.asset_type || '—'}</td>
+
+                  {/* 3. Marca / Modelo */}
+                  <td className="py-3 px-4">
+                    {item.brand || item.model
+                      ? `${item.brand || ''} ${item.model || ''}`.trim()
+                      : '—'}
+                  </td>
+
+                  {/* 4. SN */}
+                  <td className="py-3 px-4 font-mono text-xs text-gray-700">
+                    {item.serial_number || '—'}
+                  </td>
+
+                  {/* 5. Estado (ej. Asignado - Juan Pérez) */}
+                  <td className="py-3 px-4">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-800">
+                      {renderStatus(item)}
+                    </span>
+                  </td>
+
+                  {/* Acciones */}
+                  <td className="py-3 px-4 text-right space-x-2">
                     <button
                       onClick={() => handleEdit(item)}
                       className="text-blue-600 hover:text-blue-800 text-xs font-medium"
