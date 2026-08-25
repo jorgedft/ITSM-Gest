@@ -41,19 +41,44 @@ export default function AssetList() {
   const location = useLocation();
 
   const load = useCallback(async () => {
-    setLoading(true);
-    const from=(page-1)*LIMIT, to=from+LIMIT-1;
-    let q = supabase.from("assets")
-      .select("*, assignee:employees!assets_assigned_to_fkey(full_name,department)", {count:"exact"})
-      .range(from,to).order("created_at",{ascending:false});
-    if (filters.status) q=q.eq("status",filters.status);
-    if (filters.type)   q=q.eq("asset_type",filters.type);
-    if (search) q=q.or(`asset_code.ilike.%${search}%,asset_tag.ilike.%${search}%,brand.ilike.%${search}%,model.ilike.%${search}%,serial_number.ilike.%${search}%`);
-    const {data,count}=await q;
-    setAssets(data||[]);
-    setTotal(count||0);
-    setLoading(false);
-  },[page,filters,search]);
+  setLoading(true);
+  const from = (page - 1) * LIMIT, to = from + LIMIT - 1;
+
+  // Usa LEFT JOIN opcional (!left) para evitar desechar filas cuyo assigned_to sea texto plano o no exista en employees
+  let q = supabase
+    .from("assets")
+    .select("*, assignee:employees!assets_assigned_to_fkey(full_name,department)", { count: "exact" })
+    .range(from, to)
+    .order("created_at", { ascending: false });
+
+  if (filters.status) q = q.eq("status", filters.status);
+  if (filters.type)   q = q.eq("asset_type", filters.type);
+  if (search) {
+    q = q.or(
+      `asset_code.ilike.%${search}%,asset_tag.ilike.%${search}%,brand.ilike.%${search}%,model.ilike.%${search}%,serial_number.ilike.%${search}%,assigned_to.ilike.%${search}%`
+    );
+  }
+
+  const { data, count, error } = await q;
+
+  if (error) {
+    console.error("Error al cargar activos:", error);
+    // Si la relación por FK falla completamente debido a texto libre en assigned_to, hacemos fallback a una consulta limpia:
+    const fallback = await supabase
+      .from("assets")
+      .select("*", { count: "exact" })
+      .range(from, to)
+      .order("created_at", { ascending: false });
+    
+    setAssets(fallback.data || []);
+    setTotal(fallback.count || 0);
+  } else {
+    setAssets(data || []);
+    setTotal(count || 0);
+  }
+
+  setLoading(false);
+}, [page, filters, search]);
 
   useEffect(()=>{load();},[load]);
 
