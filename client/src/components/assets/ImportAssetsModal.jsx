@@ -1,28 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../../supabaseClient'; // Ajusta la ruta a tu cliente de Supabase si es distinta
-
-// 1. Constantes de tipos y ubicaciones (Áreas)
-const ASSET_TYPES = [
-  { value: 'Router', label: 'Router' },
-  { value: 'Switch', label: 'Switch' },
-  { value: 'Laptop/CPU', label: 'Laptop / CPU' },
-  { value: 'Monitor', label: 'Monitor' },
-  { value: 'Impresora', label: 'Impresora' },
-  { value: 'Periferico', label: 'Periférico' },
-  { value: 'Otro', label: 'Otro' }
-];
-
-const LOCATIONS = [
-  'Contabilidad',
-  'Administración',
-  'Sistemas / TI',
-  'Ventas',
-  'Recursos Humanos',
-  'Operaciones / Almacén',
-  'Dirección',
-  'Recepción',
-  'Soporte Técnico'
-];
+import { supabase } from '../../services/supabase'; // 👈 Cliente correcto
+import { ASSET_TYPES, LOCATIONS } from '../../utils/constants'; // 👈 Constantes unificadas
 
 const LIMIT = 10;
 
