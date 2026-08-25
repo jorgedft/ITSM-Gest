@@ -7,6 +7,12 @@ export const ASSET_TYPES = [
   { value: "peripheral", label: "Periferico"    },
   { value: "other",      label: "Otro"          },
 ];
+export const LOCATIONS = [
+  { value: "main_office", label: "Oficina Principal" },
+  { value: "warehouse",   label: "Almacén" },
+  { value: "ti",          label: "Sistemas / TI" },
+  { value: "remote",      label: "Remoto" },
+];
 
 export const ASSET_STATUS = [
   { value: "available",   label: "Disponible"        },

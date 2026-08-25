@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../supabaseClient'; // 👈 Se agregaron ../ extra
-import { ASSET_TYPES, LOCATIONS } from '../../constants/assets'; // 👈 Se agregaron ../ extra
+import { supabase } from '@/services/supabase';
+import { ASSET_TYPES, LOCATIONS } from '@/utils/constants'; // o el nombre de tu archivo de constantes dentro de esa carpeta
 
 const STATUS_OPTIONS = ['Disponible', 'Asignado', 'En Mantenimiento', 'Baja'];
 const CONDITION_OPTIONS = ['Nuevo', 'Excelente', 'Bueno', 'Regular', 'Malo'];
