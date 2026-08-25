@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../supabaseClient';
-import { ASSET_TYPES, LOCATIONS } from '../constants/assets';
-import AssetForm from './AssetForm';
+import { supabase } from '../../supabaseClient'; // 👈 Se agregaron ../ extra
+import { ASSET_TYPES, LOCATIONS } from '../../constants/assets'; // 👈 Se agregaron ../ extra
+import AssetForm from './AssetForm'; // Se mantiene igual porque está en la misma carpeta
 
 const LIMIT = 10;
 
