@@ -43,7 +43,7 @@ export default function PhoneList() {
       setLoading(true);
       const { data, error } = await supabase
         .from('phones')
-        .select('*, profiles:assigned_to(full_name)')
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -63,7 +63,7 @@ export default function PhoneList() {
         `${phone.brand || ''} ${phone.model || ''}`.trim(),
         phone.phone_number || 'Sin Línea',
         phone.imei || '',
-        phone.profiles?.full_name || 'Sin asignar',
+        phone.assigned_to || 'Sin asignar',
       ]);
 
       const csvContent = [headers, ...rows]
@@ -98,7 +98,7 @@ export default function PhoneList() {
           `${phone.brand || ''} ${phone.model || ''}`.trim(),
           phone.phone_number || 'Sin Línea',
           phone.imei || '',
-          phone.profiles?.full_name || 'Sin asignar',
+          phone.assigned_to || 'Sin asignar',
         ]),
         styles: { fontSize: 8 },
         headStyles: { fillColor: [37, 99, 235] },
@@ -165,7 +165,7 @@ export default function PhoneList() {
                     <td className="py-3 px-4 font-mono text-xs text-blue-600">{phone.phone_number || 'Sin Línea'}</td>
                     <td className="py-3 px-4 font-mono text-xs">{phone.imei}</td>
                     <td className="py-3 px-4 text-gray-700">
-                      {phone.profiles?.full_name || <span className="text-gray-400 italic">Sin asignar</span>}
+                      {phone.assigned_to || <span className="text-gray-400 italic">Sin asignar</span>}
                     </td>
                     <td className="py-3 px-4 text-right">
                       <button

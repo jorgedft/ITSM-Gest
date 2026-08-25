@@ -61,9 +61,10 @@ export default function PhoneForm() {
     e.preventDefault();
     setLoading(true);
 
+    const assignedTo = formData.assigned_to.trim();
     const payload = {
       ...formData,
-      assigned_to: formData.assigned_to === '' ? null : formData.assigned_to,
+      assigned_to: assignedTo === '' ? null : assignedTo,
     };
 
     try {
@@ -147,24 +148,20 @@ export default function PhoneForm() {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Asignado a</label>
-          <select
+          <input
+            type="text"
+            list="assigned-users-list"
             value={formData.assigned_to}
             onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
             className={inputClass}
-          >
-            <option value="">Sin Asignar</option>
+            placeholder="Nombre de la persona asignada (opcional)"
+          />
+          {/* Sugerencias de usuarios existentes; el campo acepta cualquier texto libre */}
+          <datalist id="assigned-users-list">
             {users.map((u) => (
-              <option key={u.id} value={u.id}>{u.full_name || u.id}</option>
+              <option key={u.id} value={u.full_name || ''} />
             ))}
-          </select>
-          {isEdit && formData.assigned_to && (
-            <p className="mt-1 text-xs text-gray-500">
-              Actualmente asignado a:{' '}
-              <span className="font-medium text-gray-700">
-                {users.find((u) => u.id === formData.assigned_to)?.full_name || 'Usuario desconocido'}
-              </span>
-            </p>
-          )}
+          </datalist>
         </div>
 
         <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
