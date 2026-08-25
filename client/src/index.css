@@ -10,7 +10,6 @@
     html { 
         color-scheme: light; /* Fuerza renderizado claro nativo en el navegador */
         font-family: 'Inter', system-ui, sans-serif;
-        /* Soporte para áreas seguras en iOS y Android */
         padding-top: env(safe-area-inset-top);
         padding-bottom: env(safe-area-inset-bottom);
         padding-left: env(safe-area-inset-left);
@@ -19,9 +18,7 @@
 
     body { 
         @apply bg-gray-50 text-gray-900 antialiased;
-        /* Evita el destello de toque gris en Android */
         -webkit-tap-highlight-color: transparent;
-        /* Evita el scroll elástico incómodo al arrastrar */
         overscroll-behavior-y: none;
     }
 
@@ -31,10 +28,15 @@
             font-size: 16px !important;
         }
     }
+
+    /* Forzar visibilidad y contraste en celdas de tabla */
+    table td {
+        @apply text-gray-900;
+    }
 }
 
 @layer components {
-    /* Botones adaptativos: más compactos en móvil, tamaño normal en escritorio */
+    /* Botones adaptativos */
     .btn-primary {
         @apply inline-flex items-center justify-center gap-1.5 sm:gap-2
                bg-brand-500 hover:bg-brand-600 active:bg-brand-700
@@ -57,16 +59,22 @@
                transition-colors duration-200 touch-manipulation;
     }
 
-    /* Card optimizada: p-3/p-4 en móvil, p-6 en pantalla grande */
+    /* Card optimizada */
     .card {
         @apply bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 md:p-6;
     }
 
-    /* Input ajustado con fondo blanco y texto oscuro explícitos */
+    /* Input ajustado con texto oscuro explícito y soporte para estados disabled/readonly */
     .input-field {
         @apply w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm
-               focus:outline-none focus:ring-2 focus:ring-brand-500
-               focus:border-transparent transition-shadow;
+               focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent
+               disabled:bg-gray-100 disabled:text-gray-700 disabled:opacity-100
+               read-only:bg-gray-50 read-only:text-gray-800 transition-shadow;
+    }
+
+    /* Estilo explícito para el placeholder */
+    .input-field::placeholder {
+        @apply text-gray-400 opacity-100;
     }
 
     /* Garantiza que las opciones desplegables mantengan fondo blanco y texto oscuro */
