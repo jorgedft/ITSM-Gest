@@ -122,9 +122,11 @@ export default function AssetList() {
           className="input-field"
         >
           <option value="">Todos los tipos</option>
-          {ASSET_TYPES.map((t) => (
-            <option key={t.value} value={t.value}>{t.label}</option>
-          ))}
+          {ASSET_TYPES.map((type) => (
+    <option key={type.value} value={type.value}>
+      {type.label}
+    </option>
+  ))}
         </select>
 
         <select

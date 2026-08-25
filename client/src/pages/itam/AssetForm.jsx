@@ -116,11 +116,11 @@ export default function AssetForm({ assetToEdit, onSuccess, onCancel }) {
               onChange={handleChange}
               className="input-field"
             >
-              {ASSET_TYPES.map((t) => (
-                <option key={t.value || t} value={t.value || t}>
-                  {t.label || t}
-                </option>
-              ))}
+              {ASSET_TYPES.map((type) => (
+    <option key={type.value} value={type.value}>
+      {type.label}
+    </option>
+  ))}
             </select>
           </div>
 
