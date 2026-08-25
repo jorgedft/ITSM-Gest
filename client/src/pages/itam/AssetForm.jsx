@@ -1,9 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/services/supabase';
-import { ASSET_TYPES, LOCATIONS } from '@/utils/constants'; // o el nombre de tu archivo de constantes dentro de esa carpeta
+import { ASSET_TYPES, LOCATIONS } from '@/utils/constants';
 
 const STATUS_OPTIONS = ['Disponible', 'Asignado', 'En Mantenimiento', 'Baja'];
 const CONDITION_OPTIONS = ['Nuevo', 'Excelente', 'Bueno', 'Regular', 'Malo'];
+
+// Función auxiliar para obtener siempre un valor string limpio de las constantes
+const getInitialLocation = (loc) => {
+  if (!loc) return '';
+  return typeof loc === 'object' ? loc.value : loc;
+};
 
 export default function AssetForm({ assetToEdit, onSuccess, onCancel }) {
   const [loading, setLoading] = useState(false);
@@ -16,7 +22,7 @@ export default function AssetForm({ assetToEdit, onSuccess, onCancel }) {
     status: 'Asignado',
     condition: 'Excelente',
     assigned_to: '',
-    location: LOCATIONS[0] || '',
+    location: getInitialLocation(LOCATIONS[0]),
     warranty_info: '',
     warranty_expiration: ''
   });
@@ -32,7 +38,7 @@ export default function AssetForm({ assetToEdit, onSuccess, onCancel }) {
         status: assetToEdit.status || 'Asignado',
         condition: assetToEdit.condition || 'Excelente',
         assigned_to: assetToEdit.assigned_to || '',
-        location: assetToEdit.location || LOCATIONS[0] || '',
+        location: getInitialLocation(assetToEdit.location || LOCATIONS[0]),
         warranty_info: assetToEdit.warranty_info || '',
         warranty_expiration: assetToEdit.warranty_expiration || ''
       });
@@ -116,11 +122,15 @@ export default function AssetForm({ assetToEdit, onSuccess, onCancel }) {
               onChange={handleChange}
               className="input-field"
             >
-              {ASSET_TYPES.map((type) => (
-    <option key={type.value} value={type.value}>
-      {type.label}
-    </option>
-  ))}
+              {ASSET_TYPES.map((type) => {
+                const value = typeof type === 'object' ? type.value : type;
+                const label = typeof type === 'object' ? type.label : type;
+                return (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
@@ -222,21 +232,21 @@ export default function AssetForm({ assetToEdit, onSuccess, onCancel }) {
           <div>
             <label className="label">Ubicación / Oficina</label>
             <select
-  name="location"
-  value={formData.location}
-  onChange={handleChange}
-  className="input-field"
->
-  {LOCATIONS.map((loc) => {
-    const value = typeof loc === 'object' ? loc.value : loc;
-    const label = typeof loc === 'object' ? loc.label : loc;
-    return (
-      <option key={value} value={value}>
-        {label}
-      </option>
-    );
-  })}
-</select>
+              name="location"
+              value={formData.location}
+              onChange={handleChange}
+              className="input-field"
+            >
+              {LOCATIONS.map((loc) => {
+                const value = typeof loc === 'object' ? loc.value : loc;
+                const label = typeof loc === 'object' ? loc.label : loc;
+                return (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                );
+              })}
+            </select>
           </div>
         </div>
       </div>

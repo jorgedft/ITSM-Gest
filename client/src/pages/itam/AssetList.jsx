@@ -122,29 +122,33 @@ export default function AssetList() {
           className="input-field"
         >
           <option value="">Todos los tipos</option>
-          {ASSET_TYPES.map((type) => (
-    <option key={type.value} value={type.value}>
-      {type.label}
-    </option>
-  ))}
+          {ASSET_TYPES.map((type) => {
+            const value = typeof type === 'object' ? type.value : type;
+            const label = typeof type === 'object' ? type.label : type;
+            return (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            );
+          })}
         </select>
 
         <select
-  name="location"
-  value={formData.location}
-  onChange={handleChange}
-  className="input-field"
->
-  {LOCATIONS.map((loc) => {
-    const value = typeof loc === 'object' ? loc.value : loc;
-    const label = typeof loc === 'object' ? loc.label : loc;
-    return (
-      <option key={value} value={value}>
-        {label}
-      </option>
-    );
-  })}
-</select>
+          value={selectedLocation}
+          onChange={(e) => { setSelectedLocation(e.target.value); setPage(1); }}
+          className="input-field"
+        >
+          <option value="">Todas las ubicaciones</option>
+          {LOCATIONS.map((loc) => {
+            const value = typeof loc === 'object' ? loc.value : loc;
+            const label = typeof loc === 'object' ? loc.label : loc;
+            return (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            );
+          })}
+        </select>
       </div>
 
       {/* Tabla de Equipos con las 5 columnas solicitadas */}
