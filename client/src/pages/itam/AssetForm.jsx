@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { ASSET_TYPES, LOCATIONS } from '../constants/assets';
 
+const STATUS_OPTIONS = ['Disponible', 'Asignado', 'En Mantenimiento', 'Baja'];
+const CONDITION_OPTIONS = ['Nuevo', 'Excelente', 'Bueno', 'Regular', 'Malo'];
+
 export default function AssetForm({ assetToEdit, onSuccess, onCancel }) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -10,9 +13,12 @@ export default function AssetForm({ assetToEdit, onSuccess, onCancel }) {
     brand: '',
     model: '',
     serial_number: '',
+    status: 'Asignado',
+    condition: 'Excelente',
     assigned_to: '',
-    location: LOCATIONS[0],
-    warranty_info: ''
+    location: LOCATIONS[0] || '',
+    warranty_info: '',
+    warranty_expiration: ''
   });
 
   useEffect(() => {
@@ -23,9 +29,12 @@ export default function AssetForm({ assetToEdit, onSuccess, onCancel }) {
         brand: assetToEdit.brand || '',
         model: assetToEdit.model || '',
         serial_number: assetToEdit.serial_number || '',
+        status: assetToEdit.status || 'Asignado',
+        condition: assetToEdit.condition || 'Excelente',
         assigned_to: assetToEdit.assigned_to || '',
-        location: assetToEdit.location || LOCATIONS[0],
-        warranty_info: assetToEdit.warranty_info || ''
+        location: assetToEdit.location || LOCATIONS[0] || '',
+        warranty_info: assetToEdit.warranty_info || '',
+        warranty_expiration: assetToEdit.warranty_expiration || ''
       });
     }
   }, [assetToEdit]);
@@ -42,14 +51,17 @@ export default function AssetForm({ assetToEdit, onSuccess, onCancel }) {
     try {
       const payload = {
         asset_tag: formData.asset_tag,
-        asset_code: formData.asset_tag, // Mantenemos compatibilidad si usas asset_code en otro lado
+        asset_code: formData.asset_tag, // Compatibilidad con esquemas previos
         asset_type: formData.asset_type,
         brand: formData.brand,
         model: formData.model,
         serial_number: formData.serial_number,
+        status: formData.status,
+        condition: formData.condition,
         assigned_to: formData.assigned_to,
         location: formData.location,
-        warranty_info: formData.warranty_info
+        warranty_info: formData.warranty_info,
+        warranty_expiration: formData.warranty_expiration || null
       };
 
       if (assetToEdit?.id) {
@@ -74,122 +86,191 @@ export default function AssetForm({ assetToEdit, onSuccess, onCancel }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Etiqueta / Código de Activo */}
-        <div>
-          <label className="label">Etiqueta / Código de Activo *</label>
-          <input
-            type="text"
-            name="asset_tag"
-            required
-            value={formData.asset_tag}
-            onChange={handleChange}
-            placeholder="Ej. ACT-001"
-            className="input-field"
-          />
-        </div>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* SECCIÓN 1: INFORMACIÓN PRINCIPAL */}
+      <div>
+        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+          Información Principal
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Etiqueta / Código */}
+          <div>
+            <label className="label">Etiqueta / Código *</label>
+            <input
+              type="text"
+              name="asset_tag"
+              required
+              value={formData.asset_tag}
+              onChange={handleChange}
+              placeholder="Ej. TG00002"
+              className="input-field"
+            />
+          </div>
 
-        {/* Tipo de Activo */}
-        <div>
-          <label className="label">Tipo de Activo *</label>
-          <select
-            name="asset_type"
-            value={formData.asset_type}
-            onChange={handleChange}
-            className="input-field"
-          >
-            {ASSET_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
-        </div>
+          {/* Tipo de Activo */}
+          <div>
+            <label className="label">Tipo de Activo *</label>
+            <select
+              name="asset_type"
+              value={formData.asset_type}
+              onChange={handleChange}
+              className="input-field"
+            >
+              {ASSET_TYPES.map((t) => (
+                <option key={t.value || t} value={t.value || t}>
+                  {t.label || t}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        {/* Marca */}
-        <div>
-          <label className="label">Marca</label>
-          <input
-            type="text"
-            name="brand"
-            value={formData.brand}
-            onChange={handleChange}
-            placeholder="Ej. Dell, Cisco, HP"
-            className="input-field"
-          />
-        </div>
+          {/* Marca */}
+          <div>
+            <label className="label">Marca</label>
+            <input
+              type="text"
+              name="brand"
+              value={formData.brand}
+              onChange={handleChange}
+              placeholder="Ej. GRANDSTREAM"
+              className="input-field"
+            />
+          </div>
 
-        {/* Modelo */}
-        <div>
-          <label className="label">Modelo</label>
-          <input
-            type="text"
-            name="model"
-            value={formData.model}
-            onChange={handleChange}
-            placeholder="Ej. Latitude 3420"
-            className="input-field"
-          />
-        </div>
+          {/* Modelo */}
+          <div>
+            <label className="label">Modelo</label>
+            <input
+              type="text"
+              name="model"
+              value={formData.model}
+              onChange={handleChange}
+              placeholder="Ej. SX3001"
+              className="input-field"
+            />
+          </div>
 
-        {/* Número de Serie */}
-        <div>
-          <label className="label">Número de Serie (SN)</label>
-          <input
-            type="text"
-            name="serial_number"
-            value={formData.serial_number}
-            onChange={handleChange}
-            placeholder="Ej. SN-987654321"
-            className="input-field"
-          />
-        </div>
+          {/* Nº Serie */}
+          <div>
+            <label className="label">Nº Serie (SN)</label>
+            <input
+              type="text"
+              name="serial_number"
+              value={formData.serial_number}
+              onChange={handleChange}
+              placeholder="Ej. SNXXXXXXXXX1"
+              className="input-field"
+            />
+          </div>
 
-        {/* Asignado a (Texto libre) */}
-        <div>
-          <label className="label">Asignado a (Persona o Lugar)</label>
-          <input
-            type="text"
-            name="assigned_to"
-            value={formData.assigned_to}
-            onChange={handleChange}
-            placeholder="Ej. Juan Pérez / Sala de Juntas"
-            className="input-field"
-          />
-        </div>
-
-        {/* Ubicación (Lista de Áreas) */}
-        <div>
-          <label className="label">Ubicación (Área)</label>
-          <select
-            name="location"
-            value={formData.location}
-            onChange={handleChange}
-            className="input-field"
-          >
-            {LOCATIONS.map((loc) => (
-              <option key={loc} value={loc}>
-                {loc}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Garantía */}
-        <div>
-          <label className="label">Garantía / Info de Garantía</label>
-          <input
-            type="text"
-            name="warranty_info"
-            value={formData.warranty_info}
-            onChange={handleChange}
-            placeholder="Ej. Vigente hasta 2027 / ProSupport"
-            className="input-field"
-          />
+          {/* Estado */}
+          <div>
+            <label className="label">Estado</label>
+            <select
+              name="status"
+              value={formData.status}
+              onChange={handleChange}
+              className="input-field"
+            >
+              {STATUS_OPTIONS.map((st) => (
+                <option key={st} value={st}>
+                  {st}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
+      {/* SECCIÓN 2: ASIGNACIÓN Y UBICACIÓN */}
+      <div>
+        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+          Asignación y Ubicación
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Asignado a */}
+          <div>
+            <label className="label">Asignado a</label>
+            <input
+              type="text"
+              name="assigned_to"
+              value={formData.assigned_to}
+              onChange={handleChange}
+              placeholder="Selecciona o escribe un nombre..."
+              className="input-field"
+            />
+          </div>
+
+          {/* Condición */}
+          <div>
+            <label className="label">Condición</label>
+            <select
+              name="condition"
+              value={formData.condition}
+              onChange={handleChange}
+              className="input-field"
+            >
+              {CONDITION_OPTIONS.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Ubicación / Oficina */}
+          <div>
+            <label className="label">Ubicación / Oficina</label>
+            <select
+              name="location"
+              value={formData.location}
+              onChange={handleChange}
+              className="input-field"
+            >
+              {LOCATIONS.map((loc) => (
+                <option key={loc} value={loc}>
+                  {loc}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* SECCIÓN 3: GARANTÍA */}
+      <div>
+        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+          Garantía
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Vencimiento de Garantía */}
+          <div>
+            <label className="label">Vencimiento de Garantía</label>
+            <input
+              type="date"
+              name="warranty_expiration"
+              value={formData.warranty_expiration}
+              onChange={handleChange}
+              className="input-field"
+            />
+          </div>
+
+          {/* Info Adicional Garantía */}
+          <div>
+            <label className="label">Detalles de Garantía</label>
+            <input
+              type="text"
+              name="warranty_info"
+              value={formData.warranty_info}
+              onChange={handleChange}
+              placeholder="Ej. Proveedor / Cobertura ProSupport"
+              className="input-field"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* BOTONES DE ACCIÓN */}
       <div className="flex justify-end gap-2 pt-4 border-t border-gray-100">
         {onCancel && (
           <button type="button" onClick={onCancel} className="btn-secondary">
