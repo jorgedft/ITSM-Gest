@@ -47,6 +47,7 @@ export default function PhoneList() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+      console.log('Datos traídos de Supabase:', data); // Log de depuración
       setPhones(data || []);
     } catch (err) {
       console.error('Error al cargar la telefonía:', err.message);
@@ -56,8 +57,8 @@ export default function PhoneList() {
   };
 
   const getEsimText = (esim) => {
-    if (esim === true) return 'eSIM';
-    if (esim === false) return 'Física';
+    if (esim === true || esim === 'true') return 'eSIM';
+    if (esim === false || esim === 'false') return 'Física';
     return '-';
   };
 
@@ -78,10 +79,10 @@ export default function PhoneList() {
       const rows = phones.map((phone) => [
         `${phone.brand || ''} ${phone.model || ''}`.trim() || 'Sin especificar',
         phone.phone_number || 'Sin Línea',
-        phone.imei || '-',
+        phone.imei || phone.imei1 || '-',
         phone.assigned_to || 'Sin asignar',
         phone.department || '-',
-        phone.contract_plan || '-',
+        phone.contract_plan || phone.plan || '-',
         getEsimText(phone.esim),
         phone.service_start_date || '-',
         phone.service_end_date || '-',
@@ -117,10 +118,10 @@ export default function PhoneList() {
         body: phones.map((phone) => [
           `${phone.brand || ''} ${phone.model || ''}`.trim() || '-',
           phone.phone_number || 'Sin Línea',
-          phone.imei || '-',
+          phone.imei || phone.imei1 || '-',
           phone.assigned_to || 'Sin asignar',
           phone.department || '-',
-          phone.contract_plan || '-',
+          phone.contract_plan || phone.plan || '-',
           getEsimText(phone.esim),
           phone.service_start_date || '-',
           phone.service_end_date || '-',
@@ -198,6 +199,9 @@ export default function PhoneList() {
                 ) : (
                   phones.map((phone) => {
                     const deviceName = `${phone.brand || ''} ${phone.model || ''}`.trim();
+                    const contractPlan = phone.contract_plan || phone.plan || null;
+                    const imeiVal = phone.imei || phone.imei1 || null;
+
                     return (
                       <tr key={phone.id} className="hover:bg-gray-50">
                         <td className="py-3 px-4 font-semibold text-gray-800">
@@ -207,7 +211,7 @@ export default function PhoneList() {
                           {phone.phone_number || <span className="text-gray-400 font-sans">Sin Línea</span>}
                         </td>
                         <td className="py-3 px-4 font-mono text-xs text-gray-600">
-                          {phone.imei || <span className="text-gray-400 font-sans">-</span>}
+                          {imeiVal || <span className="text-gray-400 font-sans">-</span>}
                         </td>
                         <td className="py-3 px-4 text-gray-700">
                           {phone.assigned_to || <span className="text-gray-400 italic">Sin asignar</span>}
@@ -216,20 +220,22 @@ export default function PhoneList() {
                           {phone.department || <span className="text-gray-400">-</span>}
                         </td>
                         <td className="py-3 px-4 text-gray-700">
-                          {phone.contract_plan || <span className="text-gray-400">-</span>}
+                          {contractPlan || <span className="text-gray-400">-</span>}
                         </td>
                         <td className="py-3 px-4">
-                          {phone.esim === true && (
+                          {(phone.esim === true || phone.esim === 'true') && (
                             <span className="px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-700 rounded-full">
                               eSIM
                             </span>
                           )}
-                          {phone.esim === false && (
+                          {(phone.esim === false || phone.esim === 'false') && (
                             <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded-full">
                               Física
                             </span>
                           )}
-                          {phone.esim === null && <span className="text-gray-400">-</span>}
+                          {(phone.esim === null || phone.esim === undefined || phone.esim === '') && (
+                            <span className="text-gray-400">-</span>
+                          )}
                         </td>
                         <td className="py-3 px-4 text-xs text-gray-600">
                           {phone.service_start_date || <span className="text-gray-400">-</span>}
