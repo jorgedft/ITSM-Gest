@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../services/supabase';
-import { Plus, Smartphone, FileSpreadsheet, FileText } from 'lucide-react';
+import { Plus, FileSpreadsheet, FileText } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -55,23 +55,43 @@ export default function PhoneList() {
     }
   };
 
+  const getEsimText = (esim) => {
+    if (esim === true) return 'eSIM';
+    if (esim === false) return 'Física';
+    return '-';
+  };
+
   const handleExportCSV = () => {
     try {
       setExporting(true);
-      const headers = ['Dispositivo', 'Número / SIM', 'IMEI', 'Asignado a'];
+      const headers = [
+        'Dispositivo',
+        'Número / SIM',
+        'IMEI',
+        'Asignado a',
+        'Dpto.',
+        'Plan Contrato',
+        'Tipo SIM',
+        'Inicio Serv.',
+        'Fin Serv.',
+      ];
       const rows = phones.map((phone) => [
-        `${phone.brand || ''} ${phone.model || ''}`.trim(),
+        `${phone.brand || ''} ${phone.model || ''}`.trim() || 'Sin especificar',
         phone.phone_number || 'Sin Línea',
-        phone.imei || '',
+        phone.imei || '-',
         phone.assigned_to || 'Sin asignar',
+        phone.department || '-',
+        phone.contract_plan || '-',
+        getEsimText(phone.esim),
+        phone.service_start_date || '-',
+        phone.service_end_date || '-',
       ]);
 
       const csvContent = [headers, ...rows]
         .map((row) => row.map(escapeCSV).join(','))
         .join('\r\n');
 
-      // BOM (﻿) para que Excel detecte UTF-8 y no rompa acentos/ñ
-      const blob = new Blob(['﻿' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
       downloadBlob(blob, `telefonia-${todayStr()}.csv`);
     } catch (err) {
       alert('Error al exportar CSV: ' + err.message);
@@ -93,14 +113,19 @@ export default function PhoneList() {
 
       autoTable(doc, {
         startY: 26,
-        head: [['Dispositivo', 'Número / SIM', 'IMEI', 'Asignado a']],
+        head: [['Dispositivo', 'Número / SIM', 'IMEI', 'Asignado a', 'Dpto.', 'Plan', 'eSIM', 'Inicio', 'Fin']],
         body: phones.map((phone) => [
-          `${phone.brand || ''} ${phone.model || ''}`.trim(),
+          `${phone.brand || ''} ${phone.model || ''}`.trim() || '-',
           phone.phone_number || 'Sin Línea',
-          phone.imei || '',
+          phone.imei || '-',
           phone.assigned_to || 'Sin asignar',
+          phone.department || '-',
+          phone.contract_plan || '-',
+          getEsimText(phone.esim),
+          phone.service_start_date || '-',
+          phone.service_end_date || '-',
         ]),
-        styles: { fontSize: 8 },
+        styles: { fontSize: 7 },
         headStyles: { fillColor: [37, 99, 235] },
       });
 
@@ -150,33 +175,80 @@ export default function PhoneList() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase">
+                <tr className="bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">
                   <th className="py-3 px-4">Dispositivo</th>
                   <th className="py-3 px-4">Número / SIM</th>
                   <th className="py-3 px-4">IMEI</th>
                   <th className="py-3 px-4">Asignado a</th>
+                  <th className="py-3 px-4">Dpto.</th>
+                  <th className="py-3 px-4">Plan Contrato</th>
+                  <th className="py-3 px-4">eSIM</th>
+                  <th className="py-3 px-4">Inicio Serv.</th>
+                  <th className="py-3 px-4">Fin Serv.</th>
                   <th className="py-3 px-4 text-right">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 text-sm">
-                {phones.map((phone) => (
-                  <tr key={phone.id} className="hover:bg-gray-50">
-                    <td className="py-3 px-4 font-semibold text-gray-800">{phone.brand} {phone.model}</td>
-                    <td className="py-3 px-4 font-mono text-xs text-blue-600">{phone.phone_number || 'Sin Línea'}</td>
-                    <td className="py-3 px-4 font-mono text-xs">{phone.imei}</td>
-                    <td className="py-3 px-4 text-gray-700">
-                      {phone.assigned_to || <span className="text-gray-400 italic">Sin asignar</span>}
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <button
-                        onClick={() => navigate(`/phones/${phone.id}/edit`)}
-                        className="text-blue-600 hover:text-blue-800 text-xs font-semibold"
-                      >
-                        Editar
-                      </button>
+              <tbody className="divide-y divide-gray-200 text-sm whitespace-nowrap">
+                {phones.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} className="py-8 text-center text-gray-400">
+                      No hay teléfonos registrados.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  phones.map((phone) => {
+                    const deviceName = `${phone.brand || ''} ${phone.model || ''}`.trim();
+                    return (
+                      <tr key={phone.id} className="hover:bg-gray-50">
+                        <td className="py-3 px-4 font-semibold text-gray-800">
+                          {deviceName || <span className="text-gray-400 italic font-normal">Sin especificar</span>}
+                        </td>
+                        <td className="py-3 px-4 font-mono text-xs text-blue-600">
+                          {phone.phone_number || <span className="text-gray-400 font-sans">Sin Línea</span>}
+                        </td>
+                        <td className="py-3 px-4 font-mono text-xs text-gray-600">
+                          {phone.imei || <span className="text-gray-400 font-sans">-</span>}
+                        </td>
+                        <td className="py-3 px-4 text-gray-700">
+                          {phone.assigned_to || <span className="text-gray-400 italic">Sin asignar</span>}
+                        </td>
+                        <td className="py-3 px-4 text-gray-700">
+                          {phone.department || <span className="text-gray-400">-</span>}
+                        </td>
+                        <td className="py-3 px-4 text-gray-700">
+                          {phone.contract_plan || <span className="text-gray-400">-</span>}
+                        </td>
+                        <td className="py-3 px-4">
+                          {phone.esim === true && (
+                            <span className="px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-700 rounded-full">
+                              eSIM
+                            </span>
+                          )}
+                          {phone.esim === false && (
+                            <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded-full">
+                              Física
+                            </span>
+                          )}
+                          {phone.esim === null && <span className="text-gray-400">-</span>}
+                        </td>
+                        <td className="py-3 px-4 text-xs text-gray-600">
+                          {phone.service_start_date || <span className="text-gray-400">-</span>}
+                        </td>
+                        <td className="py-3 px-4 text-xs text-gray-600">
+                          {phone.service_end_date || <span className="text-gray-400">-</span>}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <button
+                            onClick={() => navigate(`/phones/${phone.id}/edit`)}
+                            className="text-blue-600 hover:text-blue-800 text-xs font-semibold"
+                          >
+                            Editar
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>

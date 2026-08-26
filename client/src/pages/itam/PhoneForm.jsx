@@ -19,6 +19,11 @@ export default function PhoneForm() {
     imei: '',
     phone_number: '',
     assigned_to: '',
+    contract_plan: '',
+    department: '',
+    esim: '', // 'yes', 'no' o ''
+    service_start_date: '',
+    service_end_date: '',
   });
 
   useEffect(() => {
@@ -48,6 +53,11 @@ export default function PhoneForm() {
           imei: data.imei || '',
           phone_number: data.phone_number || '',
           assigned_to: data.assigned_to || '',
+          contract_plan: data.contract_plan || '',
+          department: data.department || '',
+          esim: data.esim === true ? 'yes' : data.esim === false ? 'no' : '',
+          service_start_date: data.service_start_date || '',
+          service_end_date: data.service_end_date || '',
         });
       }
     } catch (err) {
@@ -61,10 +71,26 @@ export default function PhoneForm() {
     e.preventDefault();
     setLoading(true);
 
-    const assignedTo = formData.assigned_to.trim();
+    // Convertir cadenas vacías o espacios en blanco a null para aceptar campos opcionales en BD
+    const cleanValue = (val) => {
+      if (typeof val === 'string') {
+        const trimmed = val.trim();
+        return trimmed === '' ? null : trimmed;
+      }
+      return val ?? null;
+    };
+
     const payload = {
-      ...formData,
-      assigned_to: assignedTo === '' ? null : assignedTo,
+      brand: cleanValue(formData.brand),
+      model: cleanValue(formData.model),
+      imei: cleanValue(formData.imei),
+      phone_number: cleanValue(formData.phone_number),
+      assigned_to: cleanValue(formData.assigned_to),
+      contract_plan: cleanValue(formData.contract_plan),
+      department: cleanValue(formData.department),
+      esim: formData.esim === 'yes' ? true : formData.esim === 'no' ? false : null,
+      service_start_date: cleanValue(formData.service_start_date),
+      service_end_date: cleanValue(formData.service_end_date),
     };
 
     try {
@@ -85,9 +111,10 @@ export default function PhoneForm() {
   };
 
   return (
-    <div className="p-6 max-w-2xl mx-auto space-y-6">
+    <div className="p-6 max-w-3xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
         <button
+          type="button"
           onClick={() => navigate('/phones')}
           className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
         >
@@ -99,71 +126,134 @@ export default function PhoneForm() {
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Marca</label>
-          <input
-            type="text"
-            required
-            value={formData.brand}
-            onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-            className={inputClass}
-            placeholder="Samsung, Apple, Xiaomi..."
-          />
+        
+        {/* Fila 1: Marca y Modelo */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Marca</label>
+            <input
+              type="text"
+              value={formData.brand}
+              onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+              className={inputClass}
+              placeholder="Samsung, Apple, Xiaomi..."
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Modelo</label>
+            <input
+              type="text"
+              value={formData.model}
+              onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+              className={inputClass}
+              placeholder="Galaxy A54, iPhone 13..."
+            />
+          </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Modelo</label>
-          <input
-            type="text"
-            required
-            value={formData.model}
-            onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-            className={inputClass}
-            placeholder="Galaxy A54, iPhone 13..."
-          />
+        {/* Fila 2: IMEI y Número / Línea */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">IMEI</label>
+            <input
+              type="text"
+              value={formData.imei}
+              onChange={(e) => setFormData({ ...formData, imei: e.target.value })}
+              className={inputClass}
+              placeholder="358912345678901"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Número Celular / Línea</label>
+            <input
+              type="text"
+              value={formData.phone_number}
+              onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
+              className={inputClass}
+              placeholder="+52 55 1234 5678"
+            />
+          </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">IMEI</label>
-          <input
-            type="text"
-            required
-            value={formData.imei}
-            onChange={(e) => setFormData({ ...formData, imei: e.target.value })}
-            className={inputClass}
-            placeholder="358912345678901"
-          />
+        {/* Fila 3: Asignado a y Departamento */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Asignado a</label>
+            <input
+              type="text"
+              list="assigned-users-list"
+              value={formData.assigned_to}
+              onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
+              className={inputClass}
+              placeholder="Nombre de la persona asignada"
+            />
+            <datalist id="assigned-users-list">
+              {users.map((u) => (
+                <option key={u.id} value={u.full_name || ''} />
+              ))}
+            </datalist>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Dpto. (Departamento)</label>
+            <input
+              type="text"
+              value={formData.department}
+              onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+              className={inputClass}
+              placeholder="Sistemas, Ventas, RH..."
+            />
+          </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Número Celular / Línea</label>
-          <input
-            type="text"
-            value={formData.phone_number}
-            onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
-            className={inputClass}
-            placeholder="+52 55 1234 5678"
-          />
+        {/* Fila 4: Plan de Contrato y eSIM */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Plan de Contrato</label>
+            <input
+              type="text"
+              value={formData.contract_plan}
+              onChange={(e) => setFormData({ ...formData, contract_plan: e.target.value })}
+              className={inputClass}
+              placeholder="Ej. Telcel Renta 5GB, Prepago..."
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">¿Es eSIM?</label>
+            <select
+              value={formData.esim}
+              onChange={(e) => setFormData({ ...formData, esim: e.target.value })}
+              className={inputClass}
+            >
+              <option value="">Sin especificar</option>
+              <option value="yes">Sí (eSIM)</option>
+              <option value="no">No (SIM Física)</option>
+            </select>
+          </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Asignado a</label>
-          <input
-            type="text"
-            list="assigned-users-list"
-            value={formData.assigned_to}
-            onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
-            className={inputClass}
-            placeholder="Nombre de la persona asignada (opcional)"
-          />
-          {/* Sugerencias de usuarios existentes; el campo acepta cualquier texto libre */}
-          <datalist id="assigned-users-list">
-            {users.map((u) => (
-              <option key={u.id} value={u.full_name || ''} />
-            ))}
-          </datalist>
+        {/* Fila 5: Fechas de Inicio y Fin de Servicio */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Fecha Inicio de Serv.</label>
+            <input
+              type="date"
+              value={formData.service_start_date}
+              onChange={(e) => setFormData({ ...formData, service_start_date: e.target.value })}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Fecha Fin de Serv.</label>
+            <input
+              type="date"
+              value={formData.service_end_date}
+              onChange={(e) => setFormData({ ...formData, service_end_date: e.target.value })}
+              className={inputClass}
+            />
+          </div>
         </div>
 
+        {/* Botones de Acción */}
         <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
           <button
             type="button"
