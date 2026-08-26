@@ -21,7 +21,7 @@ export default function PhoneForm() {
     assigned_to: '',
     contract_plan: '',
     department: '',
-    esim: '', // 'yes', 'no' o ''
+    esim: '',
     service_start_date: '',
     service_end_date: '',
   });
@@ -71,7 +71,6 @@ export default function PhoneForm() {
     e.preventDefault();
     setLoading(true);
 
-    // Convertir cadenas vacías o espacios en blanco a null para aceptar campos opcionales en BD
     const cleanValue = (val) => {
       if (typeof val === 'string') {
         const trimmed = val.trim();
@@ -126,8 +125,6 @@ export default function PhoneForm() {
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
-        
-        {/* Fila 1: Marca y Modelo */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Marca</label>
@@ -151,7 +148,6 @@ export default function PhoneForm() {
           </div>
         </div>
 
-        {/* Fila 2: IMEI y Número / Línea */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">IMEI</label>
@@ -175,7 +171,6 @@ export default function PhoneForm() {
           </div>
         </div>
 
-        {/* Fila 3: Asignado a y Departamento */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Asignado a</label>
@@ -205,7 +200,6 @@ export default function PhoneForm() {
           </div>
         </div>
 
-        {/* Fila 4: Plan de Contrato y eSIM */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Plan de Contrato</label>
@@ -231,7 +225,6 @@ export default function PhoneForm() {
           </div>
         </div>
 
-        {/* Fila 5: Fechas de Inicio y Fin de Servicio */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Fecha Inicio de Serv.</label>
@@ -253,7 +246,6 @@ export default function PhoneForm() {
           </div>
         </div>
 
-        {/* Botones de Acción */}
         <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
           <button
             type="button"
