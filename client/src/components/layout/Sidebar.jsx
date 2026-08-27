@@ -10,8 +10,6 @@ const NAV = [
     { to: '/dashboard',   label: 'Dashboard',     icon: LayoutDashboard },
     { to: '/assets',      label: 'Equipos',       icon: Monitor },
     { to: '/phones',      label: 'Telefonía',     icon: Smartphone },
-    { to: '/responsivas', label: 'Responsivas',   icon: FileText },
-    { to: '/tickets',     label: 'Mesa de Ayuda', icon: Ticket },
     { to: '/licenses',    label: 'Licencias',     icon: Shield },
     { to: '/vault',       label: 'Bóveda',        icon: Key },
     { to: '/network',     label: 'Red / IPs',     icon: Network },
