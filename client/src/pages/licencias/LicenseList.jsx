@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../services/supabase';
-import { Plus, Pencil } from 'lucide-react';
+import { Plus, Pencil, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import { EditLicenseModal } from '../../components/licencias/EditLicenseModal';
 
 export default function LicenseList() {
@@ -39,6 +39,58 @@ export default function LicenseList() {
     setIsModalOpen(true);
   };
 
+  // Función para calcular los días restantes y retornar el badge de estado
+  const getExpirationBadge = (expirationDate) => {
+    if (!expirationDate) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+          Perpetua
+        </span>
+      );
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Ajuste de fecha de vencimiento sin desfase de zona horaria (UTC)
+    const [year, month, day] = expirationDate.split('T')[0].split('-');
+    const expDate = new Date(year, month - 1, day);
+
+    const diffTime = expDate - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) {
+      return (
+        <div className="flex flex-col gap-1 items-start">
+          <span className="text-gray-700">{expDate.toLocaleDateString()}</span>
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-red-100 text-red-700">
+            <XCircle size={12} /> Vencida ({Math.abs(diffDays)} días)
+          </span>
+        </div>
+      );
+    }
+
+    if (diffDays <= 30) {
+      return (
+        <div className="flex flex-col gap-1 items-start">
+          <span className="text-gray-700 font-medium">{expDate.toLocaleDateString()}</span>
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-100 text-amber-800 animate-pulse">
+            <AlertTriangle size={12} /> Próxima a vencer ({diffDays} {diffDays === 1 ? 'día' : 'días'})
+          </span>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex flex-col gap-1 items-start">
+        <span className="text-gray-700">{expDate.toLocaleDateString()}</span>
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-emerald-100 text-emerald-700">
+          <CheckCircle size={12} /> Vigente ({diffDays} días)
+        </span>
+      </div>
+    );
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -65,7 +117,7 @@ export default function LicenseList() {
                   <th className="py-3 px-4">Software</th>
                   <th className="py-3 px-4">Proveedor / Tipo</th>
                   <th className="py-3 px-4">Clave / Key</th>
-                  <th className="py-3 px-4">Vencimiento</th>
+                  <th className="py-3 px-4">Vencimiento / Estado</th>
                   <th className="py-3 px-4 text-right">Acciones</th>
                 </tr>
               </thead>
@@ -75,8 +127,8 @@ export default function LicenseList() {
                     <td className="py-3 px-4 font-semibold text-gray-800">{lic.software_name}</td>
                     <td className="py-3 px-4 text-gray-600">{lic.provider || 'N/A'}</td>
                     <td className="py-3 px-4 font-mono text-xs text-blue-600">{lic.license_key || 'N/A'}</td>
-                    <td className="py-3 px-4 text-gray-600">
-                      {lic.expiration_date ? new Date(lic.expiration_date).toLocaleDateString() : 'Perpetua'}
+                    <td className="py-3 px-4">
+                      {getExpirationBadge(lic.expiration_date)}
                     </td>
                     <td className="py-3 px-4 text-right">
                       <button
