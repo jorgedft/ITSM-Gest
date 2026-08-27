@@ -92,7 +92,7 @@ export default function LicenseForm() {
             required
             value={formData.software_name}
             onChange={(e) => setFormData({ ...formData, software_name: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-400"
             placeholder="Microsoft 365, Adobe Creative Cloud, Antivirus..."
           />
         </div>
@@ -103,7 +103,7 @@ export default function LicenseForm() {
             type="text"
             value={formData.provider}
             onChange={(e) => setFormData({ ...formData, provider: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-400"
             placeholder="Microsoft, Adobe, Fortinet..."
           />
         </div>
@@ -114,7 +114,7 @@ export default function LicenseForm() {
             type="text"
             value={formData.license_key}
             onChange={(e) => setFormData({ ...formData, license_key: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-400 font-mono"
             placeholder="XXXXX-XXXXX-XXXXX-XXXXX"
           />
         </div>
@@ -126,8 +126,8 @@ export default function LicenseForm() {
               type="number"
               min="1"
               value={formData.seats_purchased}
-              onChange={(e) => setFormData({ ...formData, seats_purchased: parseInt(e.target.value) })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              onChange={(e) => setFormData({ ...formData, seats_purchased: parseInt(e.target.value) || 1 })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
             />
           </div>
 
@@ -137,7 +137,7 @@ export default function LicenseForm() {
               type="date"
               value={formData.expiration_date}
               onChange={(e) => setFormData({ ...formData, expiration_date: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
             />
           </div>
         </div>
@@ -148,7 +148,7 @@ export default function LicenseForm() {
             rows="3"
             value={formData.notes}
             onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-400"
             placeholder="Comentarios adicionales sobre la suscripción..."
           />
         </div>
