@@ -2,12 +2,16 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../../services/supabase";
 import {
   Plus, Wrench, ShieldCheck, AlertTriangle, BookOpen,
-  Search, Trash2, X, CheckCircle, Cpu, Filter, Paperclip, FileDown
+  Search, Trash2, X, CheckCircle, Cpu, Filter, Paperclip, FileDown, Eye
 } from "lucide-react";
+import { renderAsync as renderDocx } from "docx-preview";
+import * as XLSX from "xlsx";
 
 const WORKFLOW_BUCKET = "workflow-attachments";
 const ALLOWED_EXTENSIONS = [".pdf", ".docx", ".xlsx", ".txt"];
 const MAX_FILE_SIZE_MB = 10;
+
+const EMPTY_VIEWER = { open: false, loading: false, error: null, type: null, fileName: "", pdfUrl: null, textContent: null };
 
 function getFileExtension(filename) {
   const idx = filename.lastIndexOf(".");
@@ -40,6 +44,12 @@ export default function MaintenanceList() {
   const [workflowFile, setWorkflowFile] = useState(null);
   const [savingWorkflow, setSavingWorkflow] = useState(false);
   const fileInputRef = useRef(null);
+
+  // Estado del visor de archivos adjuntos
+  const [viewer, setViewer] = useState(EMPTY_VIEWER);
+  const [xlsxHtml, setXlsxHtml] = useState("");
+  const [docxBlob, setDocxBlob] = useState(null);
+  const docxContainerRef = useRef(null);
 
   // Cargar Mantenimientos, Equipos y Workflows
   const fetchData = useCallback(async () => {
@@ -169,18 +179,79 @@ export default function MaintenanceList() {
     }
   };
 
-  // Descargar archivo adjunto de una guía (genera una URL firmada de corta duración)
+  // Descargar archivo adjunto de una guía (trae el blob y lo guarda localmente)
   const handleDownloadFile = async (filePath, fileName) => {
     try {
-      const { data, error } = await supabase.storage
+      const { data: blob, error } = await supabase.storage
         .from(WORKFLOW_BUCKET)
-        .createSignedUrl(filePath, 60);
+        .download(filePath);
 
       if (error) throw error;
-      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName || "archivo";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     } catch (err) {
       alert("Error al descargar archivo: " + err.message);
     }
+  };
+
+  // Abrir el visor interno para un archivo adjunto (PDF/TXT se muestran directo, DOCX/XLSX se convierten a HTML en el navegador)
+  const handleViewFile = async (filePath, fileName) => {
+    const ext = getFileExtension(fileName);
+    setXlsxHtml("");
+    setDocxBlob(null);
+    setViewer({ ...EMPTY_VIEWER, open: true, loading: true, type: ext, fileName });
+
+    try {
+      const { data: blob, error } = await supabase.storage
+        .from(WORKFLOW_BUCKET)
+        .download(filePath);
+
+      if (error) throw error;
+
+      if (ext === ".pdf") {
+        const pdfUrl = URL.createObjectURL(blob);
+        setViewer((v) => ({ ...v, loading: false, pdfUrl }));
+      } else if (ext === ".txt") {
+        const textContent = await blob.text();
+        setViewer((v) => ({ ...v, loading: false, textContent }));
+      } else if (ext === ".xlsx") {
+        const buffer = await blob.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: "array" });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        setXlsxHtml(XLSX.utils.sheet_to_html(firstSheet));
+        setViewer((v) => ({ ...v, loading: false }));
+      } else if (ext === ".docx") {
+        setDocxBlob(blob);
+        setViewer((v) => ({ ...v, loading: false }));
+      } else {
+        setViewer((v) => ({ ...v, loading: false, error: "Formato no soportado para vista previa." }));
+      }
+    } catch (err) {
+      setViewer((v) => ({ ...v, loading: false, error: err.message }));
+    }
+  };
+
+  // Renderiza el .docx dentro del contenedor una vez que el modal y el blob están listos
+  useEffect(() => {
+    if (viewer.open && viewer.type === ".docx" && docxBlob && docxContainerRef.current) {
+      docxContainerRef.current.innerHTML = "";
+      renderDocx(docxBlob, docxContainerRef.current, undefined, { inWrapper: true })
+        .catch((err) => setViewer((v) => ({ ...v, error: err.message })));
+    }
+  }, [viewer.open, viewer.type, docxBlob]);
+
+  const closeViewer = () => {
+    if (viewer.pdfUrl) URL.revokeObjectURL(viewer.pdfUrl);
+    setViewer(EMPTY_VIEWER);
+    setXlsxHtml("");
+    setDocxBlob(null);
   };
 
   // Filtrado de mantenimientos
@@ -479,12 +550,20 @@ export default function MaintenanceList() {
                         {wf.steps}
                       </p>
                       {wf.file_path && (
-                        <button
-                          onClick={() => handleDownloadFile(wf.file_path, wf.file_name)}
-                          className="flex items-center gap-1 text-[10px] text-sky-400 hover:text-sky-300 underline"
-                        >
-                          <FileDown className="w-3 h-3" /> {wf.file_name || "Descargar archivo"}
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => handleViewFile(wf.file_path, wf.file_name)}
+                            className="flex items-center gap-1 text-[10px] text-sky-400 hover:text-sky-300 underline"
+                          >
+                            <Eye className="w-3 h-3" /> {wf.file_name || "Ver archivo"}
+                          </button>
+                          <button
+                            onClick={() => handleDownloadFile(wf.file_path, wf.file_name)}
+                            className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-300 underline"
+                          >
+                            <FileDown className="w-3 h-3" /> Descargar
+                          </button>
+                        </div>
                       )}
                       {wf.tags && wf.tags.trim() !== "" && (
                         <div className="flex flex-wrap gap-1">
@@ -503,6 +582,60 @@ export default function MaintenanceList() {
           </div>
         </div>
       )}
+
+      {/* Visor interno de archivos adjuntos (PDF/TXT nativo, DOCX/XLSX renderizados en el navegador) */}
+      {viewer.open && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-[60] p-4">
+          <div className="bg-slate-800 border border-slate-700 rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl">
+            <div className="flex justify-between items-center border-b border-slate-700 px-5 py-3 shrink-0">
+              <h3 className="text-sm font-semibold text-slate-200 truncate pr-4">{viewer.fileName}</h3>
+              <button onClick={closeViewer} className="text-slate-400 hover:text-white shrink-0">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-auto p-4 bg-slate-900">
+              {viewer.loading && (
+                <p className="text-slate-400 text-sm text-center py-10">Cargando archivo...</p>
+              )}
+              {viewer.error && (
+                <p className="text-red-400 text-sm text-center py-10">Error al mostrar el archivo: {viewer.error}</p>
+              )}
+
+              {!viewer.loading && !viewer.error && viewer.type === ".pdf" && viewer.pdfUrl && (
+                <iframe
+                  src={viewer.pdfUrl}
+                  title={viewer.fileName}
+                  className="w-full h-[75vh] rounded border border-slate-700 bg-white"
+                />
+              )}
+
+              {!viewer.loading && !viewer.error && viewer.type === ".txt" && (
+                <pre className="text-xs text-slate-200 whitespace-pre-wrap bg-slate-950 p-4 rounded border border-slate-800">
+                  {viewer.textContent}
+                </pre>
+              )}
+
+              {!viewer.loading && !viewer.error && viewer.type === ".xlsx" && (
+                <div
+                  className="xlsx-preview overflow-auto bg-white rounded p-2 text-black"
+                  dangerouslySetInnerHTML={{ __html: xlsxHtml }}
+                />
+              )}
+
+              {!viewer.loading && !viewer.error && viewer.type === ".docx" && (
+                <div ref={docxContainerRef} className="docx-preview bg-white rounded p-4 text-black overflow-auto" />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        .xlsx-preview table { border-collapse: collapse; width: 100%; font-size: 12px; }
+        .xlsx-preview td, .xlsx-preview th { border: 1px solid #cbd5e1; padding: 4px 8px; }
+        .docx-preview .docx-wrapper { background: transparent; padding: 0; }
+      `}</style>
 
     </div>
   );
