@@ -29,22 +29,23 @@ export default function MaintenanceList() {
   });
 
   // Cargar Mantenimientos
-  const loadMaintenances = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from("maintenances")
-        .select("*, asset:assets(asset_code, brand, model)")
-        .order("created_at", { ascending: false });
+// Cargar Mantenimientos
+const loadMaintenances = useCallback(async () => {
+  setLoading(true);
+  try {
+    const { data, error } = await supabase
+      .from("maintenance_logs") // <-- CAMBIADO: maintenance_logs en lugar de maintenances
+      .select("*, asset:assets(asset_code, brand, model)")
+      .order("created_at", { ascending: false });
 
-      if (error && error.code !== "42P01") throw error; // Ignorar si aún no existe la tabla
-      setMaintenances(data || []);
-    } catch (err) {
-      console.error("Error al cargar mantenimientos:", err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    if (error) throw error;
+    setMaintenances(data || []);
+  } catch (err) {
+    console.error("Error al cargar mantenimientos:", err.message);
+  } finally {
+    setLoading(false);
+  }
+}, []);
 
   // Cargar Procedimientos
   const loadWorkflows = async () => {
