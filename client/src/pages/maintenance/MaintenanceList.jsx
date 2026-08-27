@@ -35,7 +35,7 @@ export default function MaintenanceList() {
     title: "",
     category: "Software",
     tags: "",
-    steps_description: ""
+    steps: ""
   });
   const [workflowFile, setWorkflowFile] = useState(null);
   const [savingWorkflow, setSavingWorkflow] = useState(false);
@@ -124,9 +124,7 @@ export default function MaintenanceList() {
   // Guardar Workflow / Guía (sube el archivo adjunto a Storage antes de insertar el registro)
   const handleCreateWorkflow = async (e) => {
     e.preventDefault();
-    if (!formWorkflow.title || !formWorkflow.steps_description) return;
-
-    const tagsArray = formWorkflow.tags.split(",").map(t => t.trim()).filter(Boolean);
+    if (!formWorkflow.title || !formWorkflow.steps) return;
 
     setSavingWorkflow(true);
     try {
@@ -152,15 +150,15 @@ export default function MaintenanceList() {
         .insert([{
           title: formWorkflow.title,
           category: formWorkflow.category,
-          tags: tagsArray,
-          steps_description: formWorkflow.steps_description,
+          tags: formWorkflow.tags.trim(),
+          steps: formWorkflow.steps,
           file_path: filePath,
           file_name: fileName
         }]);
 
       if (error) throw error;
 
-      setFormWorkflow({ title: "", category: "Software", tags: "", steps_description: "" });
+      setFormWorkflow({ title: "", category: "Software", tags: "", steps: "" });
       setWorkflowFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
       fetchData();
@@ -430,8 +428,8 @@ export default function MaintenanceList() {
                     rows={4}
                     placeholder="Paso 1: Ejecutar script..."
                     className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs text-slate-200 outline-none"
-                    value={formWorkflow.steps_description}
-                    onChange={(e) => setFormWorkflow({ ...formWorkflow, steps_description: e.target.value })}
+                    value={formWorkflow.steps}
+                    onChange={(e) => setFormWorkflow({ ...formWorkflow, steps: e.target.value })}
                   />
                 </div>
                 <div>
@@ -478,7 +476,7 @@ export default function MaintenanceList() {
                         </span>
                       </div>
                       <p className="text-xs text-slate-300 whitespace-pre-line bg-slate-950 p-2 rounded border border-slate-800">
-                        {wf.steps_description}
+                        {wf.steps}
                       </p>
                       {wf.file_path && (
                         <button
@@ -488,9 +486,9 @@ export default function MaintenanceList() {
                           <FileDown className="w-3 h-3" /> {wf.file_name || "Descargar archivo"}
                         </button>
                       )}
-                      {wf.tags && wf.tags.length > 0 && (
+                      {wf.tags && wf.tags.trim() !== "" && (
                         <div className="flex flex-wrap gap-1">
-                          {wf.tags.map((t, idx) => (
+                          {wf.tags.split(",").map(t => t.trim()).filter(Boolean).map((t, idx) => (
                             <span key={idx} className="bg-purple-950 text-purple-300 text-[10px] px-1.5 py-0.5 rounded border border-purple-800">
                               #{t}
                             </span>
