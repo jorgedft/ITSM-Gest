@@ -61,11 +61,10 @@ export default function App() {
               <Route path="responsivas/new" element={<ResponsivaForm />} />
 
               <Route path="licenses" element={<LicenseList />} />
-              <Route path="licenses/new" element={<LicenseForm />} />
-              <Route path="network" element={<IpManagement />} />
-              <Route path="maintenance" element={<MaintenanceLog />} />
-              <Route path="/vault" element={<CredentialList />} />
-              <Route path="/maintenance" element={<MaintenanceList />} />
+<Route path="licenses/new" element={<LicenseForm />} />
+<Route path="network" element={<IpManagement />} />
+<Route path="vault" element={<CredentialList />} />
+<Route path="maintenance" element={<MaintenanceList />} />
             </Route>
           </Route>
 
