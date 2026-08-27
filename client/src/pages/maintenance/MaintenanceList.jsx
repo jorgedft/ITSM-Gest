@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { supabase } from "../supabaseClient"; // Ajusta la ruta a tu cliente
+import { supabase } from "../../services/supabase"; // Ajusta la ruta a tu cliente
 import { 
   Plus, Wrench, ShieldCheck, AlertTriangle, BookOpen, 
   Search, Trash2, X, CheckCircle, Cpu, Filter 
