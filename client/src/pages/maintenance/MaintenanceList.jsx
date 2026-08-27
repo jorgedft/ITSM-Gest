@@ -1,9 +1,18 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../../services/supabase";
-import { 
-  Plus, Wrench, ShieldCheck, AlertTriangle, BookOpen, 
-  Search, Trash2, X, CheckCircle, Cpu, Filter 
+import {
+  Plus, Wrench, ShieldCheck, AlertTriangle, BookOpen,
+  Search, Trash2, X, CheckCircle, Cpu, Filter, Paperclip, FileDown
 } from "lucide-react";
+
+const WORKFLOW_BUCKET = "workflow-attachments";
+const ALLOWED_EXTENSIONS = [".pdf", ".docx", ".xlsx", ".txt"];
+const MAX_FILE_SIZE_MB = 10;
+
+function getFileExtension(filename) {
+  const idx = filename.lastIndexOf(".");
+  return idx === -1 ? "" : filename.slice(idx).toLowerCase();
+}
 
 export default function MaintenanceList() {
   const [maintenances, setMaintenances] = useState([]);
@@ -28,6 +37,9 @@ export default function MaintenanceList() {
     tags: "",
     steps_description: ""
   });
+  const [workflowFile, setWorkflowFile] = useState(null);
+  const [savingWorkflow, setSavingWorkflow] = useState(false);
+  const fileInputRef = useRef(null);
 
   // Cargar Mantenimientos, Equipos y Workflows
   const fetchData = useCallback(async () => {
@@ -83,41 +95,105 @@ export default function MaintenanceList() {
     }
   };
 
-  // Guardar Workflow / Guía
+  // Seleccionar archivo adjunto para la guía (valida tipo y tamaño antes de aceptarlo)
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) {
+      setWorkflowFile(null);
+      return;
+    }
+
+    const ext = getFileExtension(file.name);
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      alert(`Formato no permitido. Solo se aceptan: ${ALLOWED_EXTENSIONS.join(", ")}`);
+      e.target.value = "";
+      setWorkflowFile(null);
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      alert(`El archivo supera el límite de ${MAX_FILE_SIZE_MB} MB.`);
+      e.target.value = "";
+      setWorkflowFile(null);
+      return;
+    }
+
+    setWorkflowFile(file);
+  };
+
+  // Guardar Workflow / Guía (sube el archivo adjunto a Storage antes de insertar el registro)
   const handleCreateWorkflow = async (e) => {
     e.preventDefault();
     if (!formWorkflow.title || !formWorkflow.steps_description) return;
 
     const tagsArray = formWorkflow.tags.split(",").map(t => t.trim()).filter(Boolean);
 
+    setSavingWorkflow(true);
     try {
+      let filePath = null;
+      let fileName = null;
+
+      if (workflowFile) {
+        const safeName = workflowFile.name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+        const path = `workflows/${Date.now()}-${safeName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from(WORKFLOW_BUCKET)
+          .upload(path, workflowFile);
+
+        if (uploadError) throw uploadError;
+
+        filePath = path;
+        fileName = workflowFile.name;
+      }
+
       const { error } = await supabase
         .from("maintenance_workflows")
         .insert([{
           title: formWorkflow.title,
           category: formWorkflow.category,
           tags: tagsArray,
-          steps_description: formWorkflow.steps_description
+          steps_description: formWorkflow.steps_description,
+          file_path: filePath,
+          file_name: fileName
         }]);
 
       if (error) throw error;
 
       setFormWorkflow({ title: "", category: "Software", tags: "", steps_description: "" });
+      setWorkflowFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
       fetchData();
     } catch (err) {
       alert("Error al guardar workflow: " + err.message);
+    } finally {
+      setSavingWorkflow(false);
+    }
+  };
+
+  // Descargar archivo adjunto de una guía (genera una URL firmada de corta duración)
+  const handleDownloadFile = async (filePath, fileName) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from(WORKFLOW_BUCKET)
+        .createSignedUrl(filePath, 60);
+
+      if (error) throw error;
+      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      alert("Error al descargar archivo: " + err.message);
     }
   };
 
   // Filtrado de mantenimientos
-  const filteredMaintenances = maintenances.filter(m => 
+  const filteredMaintenances = maintenances.filter(m =>
     m.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     m.asset?.asset_code?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
     <div className="p-6 bg-slate-900 min-h-screen text-slate-100">
-      
+
       {/* Header & Acciones */}
       <div className="flex justify-between items-center mb-6 border-b border-slate-800 pb-4">
         <div>
@@ -160,7 +236,7 @@ export default function MaintenanceList() {
 
       {/* Grid Principal: Formulario + Tabla */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* Formulario de Registro */}
         <div className="bg-slate-800 border border-slate-700 p-5 rounded-xl h-fit">
           <h2 className="text-lg font-semibold text-slate-200 mb-4 flex items-center gap-2">
@@ -301,7 +377,7 @@ export default function MaintenanceList() {
               <h3 className="text-xl font-bold text-purple-400 flex items-center gap-2">
                 <BookOpen className="w-6 h-6" /> Bóveda de Guías & Workflows
               </h3>
-              <button 
+              <button
                 onClick={() => setShowWorkflowModal(false)}
                 className="text-slate-400 hover:text-white"
               >
@@ -358,11 +434,32 @@ export default function MaintenanceList() {
                     onChange={(e) => setFormWorkflow({ ...formWorkflow, steps_description: e.target.value })}
                   />
                 </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1 flex items-center gap-1">
+                    <Paperclip className="w-3 h-3" /> Archivo Adjunto (opcional)
+                  </label>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept=".pdf,.docx,.xlsx,.txt"
+                    onChange={handleFileChange}
+                    className="w-full text-xs text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-500 cursor-pointer"
+                  />
+                  {workflowFile && (
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      Seleccionado: {workflowFile.name} ({(workflowFile.size / 1024).toFixed(0)} KB)
+                    </p>
+                  )}
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Formatos permitidos: PDF, DOCX, XLSX, TXT — máx. {MAX_FILE_SIZE_MB} MB
+                  </p>
+                </div>
                 <button
                   type="submit"
-                  className="w-full bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold py-2 rounded transition-all"
+                  disabled={savingWorkflow}
+                  className="w-full bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-semibold py-2 rounded transition-all"
                 >
-                  Guardar Guía
+                  {savingWorkflow ? "Guardando..." : "Guardar Guía"}
                 </button>
               </form>
 
@@ -383,6 +480,14 @@ export default function MaintenanceList() {
                       <p className="text-xs text-slate-300 whitespace-pre-line bg-slate-950 p-2 rounded border border-slate-800">
                         {wf.steps_description}
                       </p>
+                      {wf.file_path && (
+                        <button
+                          onClick={() => handleDownloadFile(wf.file_path, wf.file_name)}
+                          className="flex items-center gap-1 text-[10px] text-sky-400 hover:text-sky-300 underline"
+                        >
+                          <FileDown className="w-3 h-3" /> {wf.file_name || "Descargar archivo"}
+                        </button>
+                      )}
                       {wf.tags && wf.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1">
                           {wf.tags.map((t, idx) => (
