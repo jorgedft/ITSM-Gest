@@ -5,8 +5,6 @@ import AssetForm from './AssetForm';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-const LIMIT = 10;
-
 function escapeCSV(value) {
   const str = String(value ?? '');
   if (/[",\n]/.test(str)) {
@@ -30,11 +28,41 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
+// Descompone una etiqueta en prefijo + número final, para poder ordenar TG002 antes que TG010.
+function parseAssetTag(tag) {
+  const match = /^(.*?)(\d+)$/.exec(tag || '');
+  if (match) {
+    return { hasNumber: true, prefix: match[1], number: parseInt(match[2], 10) };
+  }
+  return { hasNumber: false, prefix: tag || '', number: 0 };
+}
+
+// Ordena por número ascendente (TG001, TG002...); las etiquetas sin número al final, alfabéticamente.
+function compareAssetTags(a, b) {
+  const tagA = a.asset_tag || a.asset_code || '';
+  const tagB = b.asset_tag || b.asset_code || '';
+  const pa = parseAssetTag(tagA);
+  const pb = parseAssetTag(tagB);
+
+  if (pa.hasNumber && pb.hasNumber) {
+    if (pa.prefix !== pb.prefix) return pa.prefix.localeCompare(pb.prefix);
+    return pa.number - pb.number;
+  }
+  if (pa.hasNumber && !pb.hasNumber) return -1;
+  if (!pa.hasNumber && pb.hasNumber) return 1;
+  return tagA.localeCompare(tagB);
+}
+
+function getLocationLabel(value) {
+  if (!value) return '—';
+  const match = LOCATIONS.find((loc) => (typeof loc === 'object' ? loc.value : loc) === value);
+  if (!match) return value;
+  return typeof match === 'object' ? match.label : match;
+}
+
 export default function AssetList() {
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [selectedType, setSelectedType] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('');
@@ -45,7 +73,6 @@ export default function AssetList() {
   const [editingAsset, setEditingAsset] = useState(null);
 
   // Aplica los filtros/búsqueda activos a cualquier query de Supabase.
-  // Se reutiliza tanto para cargar la página actual como para exportar.
   const applyFilters = useCallback((query) => {
     let q = query;
     if (selectedType) {
@@ -62,47 +89,26 @@ export default function AssetList() {
     return q;
   }, [selectedType, selectedLocation, search]);
 
+  // Trae todos los equipos que cumplan el filtro/búsqueda actual y los ordena por etiqueta.
   const loadAssets = useCallback(async () => {
     setLoading(true);
-    const from = (page - 1) * LIMIT;
-    const to = from + LIMIT - 1;
 
-    let query = supabase
-      .from('assets')
-      .select('*', { count: 'exact' })
-      .range(from, to)
-      .order('created_at', { ascending: false });
-
+    let query = supabase.from('assets').select('*');
     query = applyFilters(query);
 
-    const { data, count, error } = await query;
+    const { data, error } = await query;
 
     if (error) {
       console.error('Error al cargar activos:', error.message);
     } else {
-      setAssets(data || []);
-      setTotal(count || 0);
+      setAssets([...(data || [])].sort(compareAssetTags));
     }
     setLoading(false);
-  }, [page, applyFilters]);
+  }, [applyFilters]);
 
   useEffect(() => {
     loadAssets();
   }, [loadAssets]);
-
-  // Trae TODOS los registros que cumplan el filtro/búsqueda actual (sin paginar), para exportar.
-  const fetchAllForExport = useCallback(async () => {
-    let query = supabase
-      .from('assets')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    query = applyFilters(query);
-
-    const { data, error } = await query;
-    if (error) throw error;
-    return data || [];
-  }, [applyFilters]);
 
   const handleCreateNew = () => {
     setEditingAsset(null);
@@ -142,22 +148,29 @@ export default function AssetList() {
     return statusText;
   };
 
-  const handleExportCSV = async () => {
+  const handleExportCSV = () => {
     try {
       setExporting(true);
-      const data = await fetchAllForExport();
 
-      const headers = ['Etiqueta', 'Tipo', 'Marca', 'Modelo', 'SN', 'Estado'];
-      const rows = data.map((item) => [
+      const headers = ['Etiqueta', 'Tipo', 'Marca', 'Modelo', 'SN', 'Ubicación / Área', 'Estado'];
+      const rows = assets.map((item) => [
         item.asset_tag || item.asset_code || '',
         item.asset_type || '',
         item.brand || '',
         item.model || '',
         item.serial_number || '',
+        getLocationLabel(item.location),
         renderStatus(item),
       ]);
 
-      const csvContent = [headers, ...rows]
+      const metaLines = [
+        ['Gestión de Equipos Treggo'],
+        [`Generado: ${new Date().toLocaleString('es-MX')}`],
+        [`Total de equipos: ${assets.length}`],
+        [],
+      ];
+
+      const csvContent = [...metaLines, headers, ...rows]
         .map((row) => row.map(escapeCSV).join(','))
         .join('\r\n');
 
@@ -171,27 +184,27 @@ export default function AssetList() {
     }
   };
 
-  const handleExportPDF = async () => {
+  const handleExportPDF = () => {
     try {
       setExporting(true);
-      const data = await fetchAllForExport();
 
       const doc = new jsPDF({ orientation: 'landscape' });
 
       doc.setFontSize(14);
-      doc.text('Inventario de Equipos', 14, 15);
+      doc.text('Gestión de Equipos Treggo', 14, 15);
       doc.setFontSize(9);
       doc.setTextColor(100);
-      doc.text(`Generado: ${new Date().toLocaleString('es-MX')} — ${data.length} equipo(s)`, 14, 21);
+      doc.text(`Generado: ${new Date().toLocaleString('es-MX')} — Total de equipos: ${assets.length}`, 14, 21);
 
       autoTable(doc, {
         startY: 26,
-        head: [['Etiqueta', 'Tipo', 'Marca / Modelo', 'SN', 'Estado']],
-        body: data.map((item) => [
+        head: [['Etiqueta', 'Tipo', 'Marca / Modelo', 'SN', 'Ubicación / Área', 'Estado']],
+        body: assets.map((item) => [
           item.asset_tag || item.asset_code || '—',
           item.asset_type || '—',
           `${item.brand || ''} ${item.model || ''}`.trim() || '—',
           item.serial_number || '—',
+          getLocationLabel(item.location),
           renderStatus(item),
         ]),
         styles: { fontSize: 8 },
@@ -211,7 +224,7 @@ export default function AssetList() {
       {/* Cabecera y Botones */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Inventario de Equipos ({total})</h1>
+          <h1 className="text-xl font-bold text-gray-900">Inventario de Equipos ({assets.length})</h1>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
@@ -240,13 +253,13 @@ export default function AssetList() {
           type="text"
           placeholder="Buscar etiqueta, marca, serie, asignado..."
           value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          onChange={(e) => setSearch(e.target.value)}
           className="input-field"
         />
 
         <select
           value={selectedType}
-          onChange={(e) => { setSelectedType(e.target.value); setPage(1); }}
+          onChange={(e) => setSelectedType(e.target.value)}
           className="input-field"
         >
           <option value="">Todos los tipos</option>
@@ -263,7 +276,7 @@ export default function AssetList() {
 
         <select
           value={selectedLocation}
-          onChange={(e) => { setSelectedLocation(e.target.value); setPage(1); }}
+          onChange={(e) => setSelectedLocation(e.target.value)}
           className="input-field"
         >
           <option value="">Todas las ubicaciones</option>
@@ -279,7 +292,7 @@ export default function AssetList() {
         </select>
       </div>
 
-      {/* Tabla de Equipos con las 5 columnas solicitadas */}
+      {/* Tabla de Equipos */}
       <div className="table-container overflow-x-auto">
         <table className="table-app w-full text-left">
           <thead>
@@ -288,6 +301,7 @@ export default function AssetList() {
               <th className="py-3 px-4">Tipo</th>
               <th className="py-3 px-4">Marca / Modelo</th>
               <th className="py-3 px-4">SN</th>
+              <th className="py-3 px-4">Ubicación / Área</th>
               <th className="py-3 px-4">Estado</th>
               <th className="py-3 px-4 text-right">Acciones</th>
             </tr>
@@ -295,11 +309,11 @@ export default function AssetList() {
           <tbody className="divide-y divide-gray-100 text-sm">
             {loading ? (
               <tr>
-                <td colSpan="6" className="text-center py-6 text-gray-500">Cargando equipos...</td>
+                <td colSpan="7" className="text-center py-6 text-gray-500">Cargando equipos...</td>
               </tr>
             ) : assets.length === 0 ? (
               <tr>
-                <td colSpan="6" className="text-center py-6 text-gray-500">No se encontraron equipos</td>
+                <td colSpan="7" className="text-center py-6 text-gray-500">No se encontraron equipos</td>
               </tr>
             ) : (
               assets.map((item) => (
@@ -324,7 +338,12 @@ export default function AssetList() {
                     {item.serial_number || '—'}
                   </td>
 
-                  {/* 5. Estado (ej. Asignado - Juan Pérez) */}
+                  {/* 5. Ubicación / Área */}
+                  <td className="py-3 px-4 text-gray-700">
+                    {getLocationLabel(item.location)}
+                  </td>
+
+                  {/* 6. Estado (ej. Asignado - Juan Pérez) */}
                   <td className="py-3 px-4">
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-800">
                       {renderStatus(item)}
