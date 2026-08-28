@@ -94,7 +94,12 @@ export default function MaintenanceList() {
     try {
       const { error } = await supabase
         .from("maintenance_logs")
-        .insert([formMaintenance]);
+        .insert([{
+          asset_id: formMaintenance.asset_id,
+          maintenance_type: formMaintenance.type,
+          technician_name: formMaintenance.technician,
+          description: formMaintenance.description,
+        }]);
 
       if (error) throw error;
 
@@ -288,13 +293,13 @@ export default function MaintenanceList() {
         <div className="bg-slate-800 border border-slate-700 p-4 rounded-xl">
           <span className="text-xs text-slate-400 font-semibold uppercase">Mantenimientos Preventivos</span>
           <div className="text-2xl font-bold text-sky-400">
-            {maintenances.filter(m => m.type === "Preventivo").length}
+            {maintenances.filter(m => m.maintenance_type === "Preventivo").length}
           </div>
         </div>
         <div className="bg-slate-800 border border-slate-700 p-4 rounded-xl">
           <span className="text-xs text-slate-400 font-semibold uppercase">Mantenimientos Correctivos</span>
           <div className="text-2xl font-bold text-amber-400">
-            {maintenances.filter(m => m.type === "Correctivo").length}
+            {maintenances.filter(m => m.maintenance_type === "Correctivo").length}
           </div>
         </div>
         <div className="bg-slate-800 border border-slate-700 p-4 rounded-xl">
@@ -419,11 +424,11 @@ export default function MaintenanceList() {
                       </td>
                       <td className="py-3 px-3">
                         <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                          item.type === "Preventivo" ? "bg-sky-950 text-sky-400 border border-sky-800" :
-                          item.type === "Correctivo" ? "bg-amber-950 text-amber-400 border border-amber-800" :
+                          item.maintenance_type === "Preventivo" ? "bg-sky-950 text-sky-400 border border-sky-800" :
+                          item.maintenance_type === "Correctivo" ? "bg-amber-950 text-amber-400 border border-amber-800" :
                           "bg-purple-950 text-purple-400 border border-purple-800"
                         }`}>
-                          {item.type}
+                          {item.maintenance_type}
                         </span>
                       </td>
                       <td className="py-3 px-3 text-slate-300 max-w-xs truncate">
