@@ -80,7 +80,6 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard label="Total Equipos"    value={stats.totalAssets}    icon={Monitor}    color="bg-brand-500" sub={`${stats.assignedAssets} asignados`}/>
           <StatCard label="Telefonos"        value={stats.totalPhones}    icon={Smartphone}  color="bg-sky-500"/>
-          <StatCard label="Tickets Abiertos" value={stats.openTickets}    icon={Ticket}      color="bg-violet-500" sub={`${stats.inProgress} en progreso`}/>
           <StatCard label="Licencias"        value={stats.totalLicenses}  icon={Shield}      color="bg-emerald-500" sub={stats.expiredLicenses > 0 ? `⚠️ ${stats.expiredLicenses} expiradas` : "Al dia"}/>
         </div>
       )}
